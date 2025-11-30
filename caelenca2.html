@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Initializing...</title>
+    <style>
+        /* --- CORE VARIABLES --- */
+        :root {
+            --bg-color: #050505;
+            --term-green: #00ff41;
+            --term-dim: #008F11;
+            --error-red: #ff0055;
+            --cyber-blue: #00f3ff;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--term-green);
+            font-family: "Courier New", Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- BACKGROUND SCANLINE EFFECT --- */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg, 
+                rgba(255, 0, 0, 0.06), 
+                rgba(0, 255, 0, 0.02), 
+                rgba(0, 0, 255, 0.06)
+            );
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* --- GLITCH HEADER ANIMATION --- */
+        .glitch-wrapper {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .glitch {
+            font-size: 3rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            position: relative;
+            color: var(--term-green);
+            letter-spacing: 0.1em;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+        }
+
+        .glitch::before {
+            left: 2px;
+            text-shadow: -1px 0 var(--error-red);
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+
+        .glitch::after {
+            left: -2px;
+            text-shadow: -1px 0 var(--cyber-blue);
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse;
+        }
+
+        /* --- MAIN CONTENT CARD --- */
+        .terminal-card {
+            z-index: 10;
+            background: rgba(10, 15, 10, 0.9);
+            border: 1px solid var(--term-dim);
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+            text-align: center;
+        }
+
+        .status-line {
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            color: var(--term-dim);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background-color: var(--term-green);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+
+        /* --- ACTION BUTTONS GRID --- */
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns for top buttons */
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 0;
+            text-decoration: none;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.85rem;
+        }
+
+        /* Standard Green Buttons (GitHub/Email) */
+        .std-btn {
+            background: transparent;
+            color: var(--term-green);
+            border: 1px solid var(--term-green);
+        }
+
+        .std-btn:hover {
+            background: var(--term-green);
+            color: var(--bg-color);
+            box-shadow: 0 0 15px var(--term-green);
+        }
+
+        /* Special Blue Button (CoinOS) - Spans full width */
+        .tip-btn {
+            grid-column: span 2;
+            background: rgba(0, 243, 255, 0.05);
+            color: var(--cyber-blue);
+            border: 1px solid var(--cyber-blue);
+        }
+
+        .tip-btn:hover {
+            background: var(--cyber-blue);
+            color: var(--bg-color);
+            box-shadow: 0 0 20px var(--cyber-blue);
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes blink { 50% { opacity: 0; } }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(18px, 9999px, 11px, 0); }
+            20% { clip: rect(68px, 9999px, 99px, 0); }
+            40% { clip: rect(6px, 9999px, 92px, 0); }
+            60% { clip: rect(26px, 9999px, 10px, 0); }
+            80% { clip: rect(54px, 9999px, 49px, 0); }
+            100% { clip: rect(10px, 9999px, 80px, 0); }
+        }
+
+        @keyframes glitch-anim2 {
+            0% { clip: rect(28px, 9999px, 91px, 0); }
+            20% { clip: rect(9px, 9999px, 33px, 0); }
+            40% { clip: rect(57px, 9999px, 86px, 0); }
+            60% { clip: rect(89px, 9999px, 4px, 0); }
+            80% { clip: rect(46px, 9999px, 19px, 0); }
+            100% { clip: rect(20px, 9999px, 93px, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glitch-wrapper">
+        <div class="glitch" data-text="SYSTEM_OFFLINE">SYSTEM_OFFLINE</div>
+    </div>
+
+    <div class="terminal-card">
+        <p class="status-line">
+            > ID: CAELENM <br>
+            > STATUS: BUILDING... <br>
+            > ACCESSING NODE... <span class="cursor"></span>
+        </p>
+
+        <p style="margin-top: 1.5rem; margin-bottom: 0;">
+            Robotics / SLAM / Dev
+        </p>
+
+        <!-- CONTROL PANEL -->
+        <div class="control-panel">
+            <!-- 1. GitHub Link -->
+            <a href="https://github.com/caelenm" target="_blank" class="btn std-btn">
+                [ GITHUB ]
+            </a>
+
+            <!-- 2. Email Link (UPDATE THIS!) -->
+            <a href="mailto:cmattie@stfx.ca" class="btn std-btn">
+                [ EMAIL ]
+            </a>
+
+            <!-- 3. CoinOS Tip Button -->
+            <a href="https://coinos.io/cjm" target="_blank" class="btn tip-btn">
+                ⚡ Send Sats via CoinOS
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
