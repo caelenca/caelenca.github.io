@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Initializing...</title>
+    <!-- Add Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- CORE VARIABLES --- */
         :root {
@@ -12,6 +14,7 @@
             --term-dim: #008F11;
             --error-red: #ff0055;
             --cyber-blue: #00f3ff;
+            --alert-orange: #ffaa00; /* Added for Resume Button */
         }
 
         body {
@@ -121,7 +124,7 @@
         /* --- ACTION BUTTONS GRID --- */
         .control-panel {
             display: grid;
-            grid-template-columns: 1fr 1fr; /* Two columns */
+            grid-template-columns: 1fr 1fr;
             gap: 1rem;
             margin-top: 2rem;
         }
@@ -139,6 +142,7 @@
             cursor: pointer;
             font-family: "Courier New", Courier, monospace;
             font-size: 0.85rem;
+            gap: 8px; /* Space between icon and text */
         }
 
         /* Standard Green Buttons */
@@ -154,7 +158,7 @@
             box-shadow: 0 0 15px var(--term-green);
         }
 
-        /* Special Blue Button (CoinOS) - Spans full width */
+        /* Special Blue Button (CoinOS) */
         .tip-btn {
             grid-column: span 2;
             background: rgba(0, 243, 255, 0.05);
@@ -166,6 +170,20 @@
             background: var(--cyber-blue);
             color: var(--bg-color);
             box-shadow: 0 0 20px var(--cyber-blue);
+        }
+
+        /* New Orange Resume Button */
+        .resume-btn {
+            grid-column: span 2;
+            background: rgba(255, 170, 0, 0.05);
+            color: var(--alert-orange);
+            border: 1px solid var(--alert-orange);
+        }
+
+        .resume-btn:hover {
+            background: var(--alert-orange);
+            color: var(--bg-color);
+            box-shadow: 0 0 20px var(--alert-orange);
         }
 
         /* --- ANIMATIONS --- */
@@ -214,22 +232,27 @@
                 [ GITHUB ]
             </a>
 
-              <!-- 2. Email Link -->
+            <!-- 2. Email Link -->
             <a href="mailto:cmattie@stfx.ca" class="btn std-btn">
                 [ EMAIL ]
             </a>
 
-            <!-- 3. ORCID Link (New) -->
+            <!-- 3. ORCID Link -->
             <a href="https://orcid.org/0009-0003-6877-1610" target="_blank" class="btn std-btn">
                 [ ORCID ]
             </a>
 
-          <!-- 4. LinkedIn Link (New) -->
+            <!-- 4. LinkedIn Link -->
             <a href="https://www.linkedin.com/in/cmattie" target="_blank" class="btn std-btn">
                 [ LINKEDIN ]
             </a>
 
-            <!-- 5. CoinOS Tip Button -->
+            <!-- 5. NEW Resume Button (Orange, Full Width) -->
+            <a href="https://drive.proton.me/urls/J0VVDM7GQG#FdbKszVJQvYP" target="_blank" class="btn resume-btn">
+                <i class="fa-solid fa-file-lines"></i> ACCESS RESUME
+            </a>
+
+            <!-- 6. CoinOS Tip Button -->
             <a href="https://coinos.io/cjm" target="_blank" class="btn tip-btn">
                 ⚡ Send Sats via CoinOS
             </a>
