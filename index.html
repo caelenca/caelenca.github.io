@@ -14,7 +14,7 @@
             --term-dim: #008F11;
             --error-red: #ff0055;
             --cyber-blue: #00f3ff;
-            --alert-orange: #ffaa00; /* Added for Resume Button */
+            --alert-orange: #ffaa00;
         }
 
         body {
@@ -104,6 +104,8 @@
             width: 90%;
             box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
             text-align: center;
+            max-height: 90vh; /* Prevent overflow on small screens */
+            overflow-y: auto;
         }
 
         .status-line {
@@ -142,7 +144,7 @@
             cursor: pointer;
             font-family: "Courier New", Courier, monospace;
             font-size: 0.85rem;
-            gap: 8px; /* Space between icon and text */
+            gap: 8px;
         }
 
         /* Standard Green Buttons */
@@ -186,6 +188,52 @@
             box-shadow: 0 0 20px var(--alert-orange);
         }
 
+        /* --- SUBTLE GPG DROPDOWN --- */
+        .gpg-wrapper {
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--term-dim);
+            text-align: center;
+            width: 100%;
+        }
+
+        details {
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        summary {
+            list-style: none; /* Hide default triangle */
+            outline: none;
+            opacity: 0.7;
+        }
+
+        /* Custom indicator or just hover effect */
+        summary:hover {
+            opacity: 1;
+            color: var(--term-green);
+            text-decoration: underline;
+        }
+        
+        /* Hide default marker in WebKit */
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .gpg-block {
+            margin-top: 0.8rem;
+            padding: 0.8rem;
+            background: rgba(0, 20, 0, 0.8);
+            border: 1px solid var(--term-dim);
+            color: var(--term-dim);
+            font-size: 0.65rem;
+            text-align: left;
+            white-space: pre-wrap; /* Preserve line breaks */
+            word-break: break-all; /* Break long strings */
+            font-family: monospace;
+            user-select: all; /* Easier to copy */
+        }
+
         /* --- ANIMATIONS --- */
         @keyframes blink { 50% { opacity: 0; } }
 
@@ -216,8 +264,8 @@
 
     <div class="terminal-card">
         <p class="status-line">
-            > ID: CAELENM <br>
-            > STATUS: BUILDING... <br>
+            > ID: CAELEN MATTIE (CAELENM) <br>
+            > STATUS: RUNNING... <br>
             > ACCESSING NODE... <span class="cursor"></span>
         </p>
 
@@ -247,7 +295,7 @@
                 [ LINKEDIN ]
             </a>
 
-            <!-- 5. NEW Resume Button (Orange, Full Width) -->
+            <!-- 5. Resume Button -->
             <a href="https://drive.proton.me/urls/J0VVDM7GQG#FdbKszVJQvYP" target="_blank" class="btn resume-btn">
                 <i class="fa-solid fa-file-lines"></i> ACCESS RESUME
             </a>
@@ -257,6 +305,38 @@
                 ⚡ Send Sats via CoinOS
             </a>
         </div>
+
+        <!-- GPG KEY DROPDOWN -->
+        <div class="gpg-wrapper">
+            <details>
+                <summary>
+                    <i class="fa-solid fa-key"></i> gpg key
+                </summary>
+                <div class="gpg-block">-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEaLrtlhYJKwYBBAHaRw8BAQdAXpef/AMZz481Mq1lNAnuTGApH12mHDjAQ2Po
+fthVs/C0H0NhZWxlbiBNYXR0aWUgPGNtYXR0aWVAc3RmeC5jYT6ImQQTFgoAQRYh
+BBu0NrHoN4+i1PD3l1ukbntBioPdBQJouu2WAhsDBQkJZgGABQsJCAcCAiICBhUK
+CQgLAgQWAgMBAh4HAheAAAoJEFukbntBioPdYJ0BAOIE1GWhRSK4pNSAOY5vJO11
+fMjqI9WFWcnWDoQ4j77nAQCGNOlje4vUbSc/sBz1LhI3rsw9bD0wqDI6pg8URRot
+Brg4BGi67ZYSCisGAQQBl1UBBQEBB0ARIPt0V8r5n7WyHZhOAgwY6VoGwgKvg6fE
+wsvTmyoxZAMBCAeIfgQYFgoAJhYhBBu0NrHoN4+i1PD3l1ukbntBioPdBQJouu2W
+AhsMBQkJZgGAAAoJEFukbntBioPd4zMBAIIRvPYSNHLe12jvS4ZMQrMGpLCVxsVG
+xpul8Wndt799AQCU7Xw+4OAy/8bUWRUMpYVRJGX7vlGTtouRUtX70H3GBpgzBGku
+KFsWCSsGAQQB2kcPAQEHQBn/N9JZd/hRNTSX8pDUd8iydApiQYhFpsiBBBQ03Gr5
+tB9DYWVsZW4gTWF0dGllIDxjbWF0dGllQHN0ZnguY2E+iJkEExYKAEEWIQQjM0tQ
++bkjZoib/KExYrEDIvKNRgUCaS4oWwIbAwUJA8JnAAULCQgHAgIiAgYVCgkICwIE
+FgIDAQIeBwIXgAAKCRAxYrEDIvKNRk0oAP4xGYLKar/qVkGJvawdhjCugNjU8+Rk
+nK+mxIvitNgHrwD/XRRSQZAHbHy+fRcxvbNMaVq+KU8FQF7GAKn00W1A3gG4OARp
+LihbEgorBgEEAZdVAQUBAQdAhXhtLhjLPBUiuXHnyVqb94E0bMKy8vtNoKRcVMUm
+MAsDAQgHiH4EGBYKACYWIQQjM0tQ+bkjZoib/KExYrEDIvKNRgUCaS4oWwIbDAUJ
+A8JnAAAKCRAxYrEDIvKNRgD+AP4/s0Ram26hahM+msOIo+1hs5y+fQfY87humbJG
+F/WuMwD/VGgQ/O09ddMggl0Y9oHCP1nwULZXsJj8SPqASgI06ww=
+=hgxV
+-----END PGP PUBLIC KEY BLOCK-----</div>
+            </details>
+        </div>
+
     </div>
 
 </body>
