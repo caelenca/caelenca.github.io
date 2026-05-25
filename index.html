@@ -217,30 +217,24 @@
         }
 
         .btc-options code {
+            display: block;
+            margin-top: 6px;
             font-family: 'Courier New', monospace;
             background: rgba(255, 255, 255, 0.1);
-            padding: 2px 6px;
+            padding: 8px 10px;
             border: 1px solid var(--cyber-blue);
             border-radius: 4px;
-            word-break: break-all;
-            
-           
+            line-height: 1.6;
+        
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        
             -webkit-box-decoration-break: clone;
             box-decoration-break: clone;
         
-            
             cursor: pointer;
-            transition: background 0.2s ease;
-    }
-        
-        .btc-options code:hover {
-            background: rgba(0, 255, 255, 0.2);
-    }
-
-    
-        .btc-options code.copied {
-            background: var(--cyber-blue);
-            color: #000;
+            transition: background 0.2s ease, color 0.2s ease;
     }
 
         /* New Orange Resume Button */
