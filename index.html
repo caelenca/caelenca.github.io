@@ -160,18 +160,60 @@
             box-shadow: 0 0 15px var(--term-green);
         }
 
-        /* Special Blue Button (CoinOS) */
-        .tip-btn {
+        /* --- BITCOIN DROPDOWN --- */
+        .btc-wrapper {
             grid-column: span 2;
+        }
+
+        .btc-summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 0;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.85rem;
+            gap: 8px;
             background: rgba(0, 243, 255, 0.05);
             color: var(--cyber-blue);
             border: 1px solid var(--cyber-blue);
+            opacity: 1;
         }
 
-        .tip-btn:hover {
+        .btc-summary:hover {
             background: var(--cyber-blue);
             color: var(--bg-color);
             box-shadow: 0 0 20px var(--cyber-blue);
+            text-decoration: none;
+        }
+
+        .btc-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .btc-options {
+            margin-top: 0.75rem;
+            padding: 0.9rem 1.1rem;
+            border: 1px solid var(--cyber-blue);
+            background: rgba(0, 20, 20, 0.8);
+            color: var(--cyber-blue);
+            text-align: left;
+            font-size: 0.8rem;
+        }
+
+        .btc-options ul {
+            margin: 0;
+            padding-left: 1.2rem;
+        }
+
+        .btc-options li {
+            margin: 0.35rem 0;
+            word-break: break-all;
         }
 
         /* New Orange Resume Button */
@@ -273,7 +315,7 @@
             NLP / ML / FINANCE / XAI
         </p>
 
-                <!-- CONTROL PANEL -->
+        <!-- CONTROL PANEL -->
         <div class="control-panel">
             <!-- 1. GitHub Link -->
             <a href="https://github.com/caelenm" target="_blank" class="btn std-btn">
@@ -300,10 +342,19 @@
                 <i class="fa-solid fa-file-lines"></i> ACCESS RESUME
             </a>
 
-            <!-- 6. CoinOS Tip Button -->
-            <a href="https://coinos.io/cjm" target="_blank" class="btn tip-btn">
-                ⚡ Send ₿itcoin
-            </a>
+            <!-- 6. Bitcoin Dropdown -->
+            <details class="btc-wrapper">
+                <summary class="btc-summary">
+                    ⚡ Send ₿itcoin
+                </summary>
+                <div class="btc-options">
+                    <ul>
+                          <li>Lightning: me@caelen.ca</li>
+                          <li>Silent payments: sp1qq2dz2gh0qskfgpu3cq0grkr27a6303pxlyay4kkx0g468uzsyrvv5qcld74aparskh7sk4zdcv5dmjara6kz3jy8kek0pag4jl3uxnazsghz0qac
+                          <li>On-chain: &lt;bc1q9atenwdrty05hf8hs30qg5v4dpux4kmma3are3&gt;</li>
+                    </ul>
+                </div>
+            </details>
         </div>
 
         <!-- GPG KEY DROPDOWN -->
