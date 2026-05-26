@@ -160,82 +160,6 @@
             box-shadow: 0 0 15px var(--term-green);
         }
 
-        /* --- BITCOIN DROPDOWN --- */
-        .btc-wrapper {
-            grid-column: span 2;
-        }
-
-        .btc-summary {
-            list-style: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 0;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 0.85rem;
-            gap: 8px;
-            background: rgba(0, 243, 255, 0.05);
-            color: var(--cyber-blue);
-            border: 1px solid var(--cyber-blue);
-            opacity: 1;
-        }
-
-        .btc-summary:hover {
-            background: var(--cyber-blue);
-            color: var(--bg-color);
-            box-shadow: 0 0 20px var(--cyber-blue);
-            text-decoration: none;
-        }
-
-        .btc-summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .btc-options {
-            margin-top: 0.75rem;
-            padding: 0.9rem 1.1rem;
-            border: 1px solid var(--cyber-blue);
-            background: rgba(0, 20, 20, 0.8);
-            color: var(--cyber-blue);
-            text-align: left;
-            font-size: 0.8rem;
-        }
-
-        .btc-options ul {
-            margin: 0;
-            padding-left: 1.2rem;
-        }
-
-        .btc-options li {
-            margin: 0.35rem 0;
-            word-break: break-all;
-        }
-
-        .btc-options code {
-            display: block;
-            margin-top: 6px;
-            font-family: 'Courier New', monospace;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px 10px;
-            border: 1px solid var(--cyber-blue);
-            border-radius: 4px;
-            line-height: 1.6;
-        
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-            word-break: normal;
-        
-            -webkit-box-decoration-break: clone;
-            box-decoration-break: clone;
-        
-            cursor: pointer;
-            transition: background 0.2s ease, color 0.2s ease;
-    }
 
         /* New Orange Resume Button */
         .resume-btn {
@@ -363,19 +287,6 @@
                 <i class="fa-solid fa-file-lines"></i> ACCESS RESUME
             </a>
 
-            <!-- 6. Bitcoin Dropdown -->
-            <details class="btc-wrapper">
-                <summary class="btc-summary">
-                    ⚡ Send ₿itcoin
-                </summary>
-                <div class="btc-options">
-                    <ul>
-                          <li>Lightning: <code> me@caelen.ca </code></li><br>
-                          <li>Silent payments: <code> sp1qq2dz2gh0qskfgpu3cq0grkr27a6303pxlyay4kkx0g468uzsyrvv5qcld74aparskh7sk4zdcv5dmjara6kz3jy8kek0pag4jl3uxnazsghz0qac </code> </li><br>
-                          <li>On-chain: <code> bc1q9atenwdrty05hf8hs30qg5v4dpux4kmma3are3 </code> </li>
-                    </ul>
-                </div>
-            </details>
         </div>
 
         <!-- GPG KEY DROPDOWN -->
