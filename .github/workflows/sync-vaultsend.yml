@@ -23,13 +23,13 @@ jobs:
           # token: ${{ secrets.CAELENM_PAT }}    # ← uncomment if caelenm/vaultsend is private
           path: upstream
           sparse-checkout: |
-            VaultSend_offline.html
+            index.html
           sparse-checkout-cone-mode: false
 
       - name: Copy upstream file
         run: |
           mkdir -p vaultsend
-          cp upstream/VaultSend_offline.html vaultsend/index.html
+          cp upstream/index.html vaultsend/index.html
 
       - name: Commit and push if changed
         run: |
