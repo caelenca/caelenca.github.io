@@ -1,0 +1,41 @@
+name: Sync VaultSend
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"  # every 30 minutes
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout destination repo
+        uses: actions/checkout@v4                 # ✅ fixed: v4, not v5
+
+      - name: Checkout source repo/file
+        uses: actions/checkout@v4                 # ✅ fixed: v4, not v5
+        with:
+          repository: caelenm/vaultsend
+          ref: web
+          # token: ${{ secrets.CAELENM_PAT }}    # ← uncomment if caelenm/vaultsend is private
+          path: upstream
+          sparse-checkout: |
+            VaultSend_offline.html
+          sparse-checkout-cone-mode: false
+
+      - name: Copy upstream file
+        run: |
+          mkdir -p vaultsend
+          cp upstream/VaultSend_offline.html vaultsend/VaultSend_offline.html
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vaultsend/VaultSend_offline.html
+          git diff --cached --quiet && echo "No changes, skipping commit." && exit 0
+          git commit -m "Sync VaultSend from caelenm/vaultsend@web"
+          git push
