@@ -29,7 +29,7 @@ jobs:
       - name: Copy upstream file
         run: |
           mkdir -p vaultsend
-          cp upstream/VaultSend_offline.html vaultsend/VaultSend_offline.html
+          cp upstream/VaultSend_offline.html vaultsend/index.html
 
       - name: Commit and push if changed
         run: |
