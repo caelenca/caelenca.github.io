@@ -1,650 +1,280 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Make sure that no communication with external sites is possible -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src data:">
-    <title>Offline QR code generator</title>
-    <script>
-        console.log("Offline QR code generator by github.com/six-two - Version 2026-01-29 - Nayuki Engine")
-        const get_or_default_int = (name, default_value) => {
-            const stored = localStorage.getItem(name);
-            if (stored != null) {
-                try {
-                    return parseInt(stored);
-                } catch (error) {
-                    console.warn(`Failed to parse stored entry for '${name}'`);
-                }
-            }
-            return default_value;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Fully offline: no origin other than the page itself is reachable. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>QR file ferry</title>
+<style>
+:root{
+  --ink:#0D0F14; --panel:#151922; --panel2:#1C212C; --line:#2B3240; --line2:#3A4356;
+  --text:#E4E8EE; --muted:#8C96A8; --amber:#F5C453; --green:#5FD0A0; --red:#F0705C;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink); color:var(--text); font-family:var(--sans);
+  font-size:15px; line-height:1.5;
+  min-height:100vh;
+  padding:0 16px calc(24px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1180px;margin:0 auto}
 
-        // ================== Start of user settings ==================
-        // You can modify these settings without breaking stuff
+/* ---------- header ---------- */
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:20px 0 14px}
+.mark{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber)}
+.mark b{font-weight:600}
+.tagline{font-size:13px;color:var(--muted);flex:1;min-width:180px}
+.tabs{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.tabs button{
+  font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  background:transparent;color:var(--muted);border:0;padding:9px 16px;cursor:pointer;
+}
+.tabs button[aria-selected="true"]{background:var(--amber);color:#16130A;font-weight:600}
+.tabs button:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
 
-        // Thanks to @d3xbot for providing the numbers
-        // ERROR_CORRECTION_LEVEL L – up to 7% damage - MAX_BYTES: 2953
-        // ERROR_CORRECTION_LEVEL M – up to 15% damage - MAX_BYTES: 2331
-        // ERROR_CORRECTION_LEVEL Q – up to 25% damage - MAX_BYTES: 1663
-        // ERROR_CORRECTION_LEVEL H – up to 30% damage - MAX_BYTES: 1273
-        let ERROR_CORRECTION_LEVEL = localStorage.getItem("ERROR_CORRECTION_LEVEL") || "L";
+/* ---------- panels ---------- */
+.panel{display:none}
+.panel.on{display:block}
+.grid{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:20px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card + .card{margin-top:14px}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px}
+.hint{font-size:13px;color:var(--muted);margin:10px 0 0}
+.hint a{color:var(--amber)}
 
-        // Allow users to enable the clipboard monitoring function. Set this to false to hide the checkbox
-        let SHOW_CLIPBOARD_MONITORING_CONTROLS = true;
+/* ---------- drop zone ---------- */
+#drop{
+  border:1px dashed var(--line2);border-radius:var(--r);background:var(--panel2);
+  padding:26px 18px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;
+}
+#drop:hover,#drop.hot{border-color:var(--amber);background:#232937}
+#drop:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+#drop strong{display:block;font-size:15px;margin-bottom:4px}
+#drop span{font-size:13px;color:var(--muted)}
+input[type=file]{display:none}
 
-        // Size of the QR code in pixels. Set it to 0 to automatically fit the free space
-        let QR_MIN_SIZE = get_or_default_int("QR_MIN_SIZE", 30); //in pixels
-        let QR_MAX_SIZE = get_or_default_int("QR_MAX_SIZE", Infinity); // in pixels
+/* ---------- readout ---------- */
+.readout{font-family:var(--mono);font-size:13px;border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+.readout div{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+.readout dt{color:var(--muted)}
+.readout b{font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
 
-        // If you want a border around the QR code (that will stay when you right click -> "Save image as..." the image, set this to something greater than zero)
-        let QR_BORDER_SIZE = get_or_default_int("QR_BORDER_SIZE", 0); // in pixels
-        let QR_BORDER_COLOR = localStorage.getItem("QR_BORDER_COLOR") || "#909090"; // standard html color codes
+/* ---------- controls ---------- */
+select,input[type=text],input[type=url],textarea{
+  width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line2);
+  border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:13px;
+}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--amber);outline-offset:-1px;border-color:var(--amber)}
+textarea{resize:vertical;min-height:120px;line-height:1.45}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > *{flex:1 1 auto}
+button.act{
+  font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:8px;
+  padding:10px 14px;cursor:pointer;
+}
+button.act:hover{border-color:var(--amber);color:var(--amber)}
+button.act:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+button.act:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+button.act.primary{background:var(--amber);color:#16130A;border-color:var(--amber);font-weight:600}
+button.act.primary:hover{filter:brightness(1.08);color:#16130A}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+summary{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+details .field{margin-top:12px}
+details .field .label{margin-bottom:6px}
 
-        let QR_BLACK = localStorage.getItem("QR_BLACK") || "black";
-        let QR_WHITE = localStorage.getItem("QR_WHITE") || "white";
-        let QR_SCALE = get_or_default_int("QR_SCALE", 2);
+/* ---------- the lit window ---------- */
+.stage{position:relative;display:flex;flex-direction:column;align-items:center}
+.glow{position:absolute;inset:6% 6% 18%;background:radial-gradient(closest-side,rgba(245,196,83,.20),transparent 70%);filter:blur(28px);pointer-events:none}
+.sheet{
+  position:relative;background:#fff;border-radius:6px;padding:12px;
+  width:min(100%,74vh);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 1px rgba(255,255,255,.10), 0 22px 60px -20px rgba(0,0,0,.9);
+}
+.sheet svg{width:100%;height:100%;display:block}
+.sheet.empty{background:var(--panel);border:1px dashed var(--line2);box-shadow:none;color:var(--muted);font-family:var(--mono);font-size:13px;text-align:center;padding:28px}
 
-        // Specify what to do when you click the QR code
-        let CLICK_ACTION = (localStorage.getItem("CLICK_ACTION")) || "file.png"; // file.png -> .png download, file.svg -> .svg download, copy.png -> copy .png
-        // =================== End of user settings ===================
-    </script>
+/* ---------- counter + rail (signature) ---------- */
+.counter{display:flex;align-items:baseline;gap:10px;margin:16px 0 10px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.counter .now{font-size:40px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.counter .of{font-size:18px;color:var(--muted)}
+.counter .stat{margin-left:auto;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.rail{display:flex;flex-wrap:wrap;gap:3px;width:100%;margin-bottom:14px}
+.cell{
+  flex:1 1 10px;min-width:8px;height:16px;border-radius:2px;background:var(--panel2);
+  border:1px solid var(--line);padding:0;cursor:pointer;transition:background .12s,border-color .12s;
+}
+.cell.seen{background:#3c4457}
+.cell.now{background:var(--amber);border-color:var(--amber)}
+.cell.have{background:var(--green);border-color:var(--green)}
+.cell:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.nav{display:flex;gap:10px;width:100%}
+.nav button{flex:1}
+.nav button.wide{flex:2}
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            width: 100vw;
-            height: 100dvh;
-            max-height: 100dvh;
-            margin: 0px;
-            padding: 0px;
-            display: flex;
-            flex-direction: column;
-            background-color: lightgray;
-            overflow: hidden;
-        }
-
-        header {
-            width: 100%;
-            min-height: 40px;
-            background-color: #444;
-            color: lightgray;
-            display: flex;
-            font-size: 25px;
-            padding: 5px;
-        }
-        
-        @media (hover: none) or (pointer: coarse) {
-            /* On touch devices, let the user scroll through the menu bar. On desktop just wrap lines at whitespaces (looks better) */
-            header {
-                overflow-y: auto;
-                white-space: nowrap;
-            }
-        }
-
-        header a, header .button {
-            color: lightgray;
-            margin-right: 20px;
-        }
-
-        header .title {
-            margin-right: 20px;
-        }
-
-        header .button {
-            cursor: pointer;
-            text-decoration: underline
-        }
-
-        .expand {
-            flex: 1;
-        }
-
-        #settings {
-            width: 100%;
-            display: none; /* set this to 'flex' while developing the settings feature to show it by default. Otherwise use 'none'. */
-            flex-direction: column;
-        }
-
-        #text-and-qr {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 5px;
-        }
-
-        #input-div {
-            min-height: 100px;
-            min-width: 200px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #input {
-            width: 100%;
-            height: 100%;
-            flex: 1;
-            resize: none;
-        }
-
-        #input-error {
-            margin-bottom: 10px;
-            display: none;
-        }
-
-        .error {
-            width: 100%;
-            background-color: rgb(255, 140, 140);
-            border: 2px solid red;
-            border-radius: 10px;
-            padding: 5px;
-        }
-
-        #qrcode {
-            width: 100%;
-            height: 100%;
-            padding: 5px;
-        }
-
-        #qrcode canvas {
-            margin: auto;
-            display: block;
-        }
-    </style>
+/* ---------- receive ---------- */
+.status{font-family:var(--mono);font-size:13px;margin-top:12px;min-height:20px}
+.status.ok{color:var(--green)}
+.status.bad{color:var(--red)}
+.missing{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px;overflow-wrap:anywhere}
+.result{border:1px solid var(--green);border-radius:var(--r);padding:16px;margin-top:14px;background:#16221D}
+.result h3{margin:0 0 4px;font-size:16px;overflow-wrap:anywhere}
+.result p{margin:0 0 12px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.preview{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.preview img{max-width:100%;border-radius:6px;display:block}
+.preview pre{
+  margin:0;max-height:280px;overflow:auto;background:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:10px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+ol.steps{margin:0;padding-left:20px;font-size:14px;color:var(--muted)}
+ol.steps li{margin-bottom:6px}
+ol.steps b{color:var(--text);font-weight:600}
+.bootstrap{display:flex;gap:14px;align-items:flex-start}
+.bootstrap .mini{background:#fff;border-radius:6px;padding:8px;width:132px;flex:0 0 132px}
+.bootstrap .mini svg{width:100%;height:auto;display:block}
+@media (max-width:520px){.bootstrap{flex-direction:column}.bootstrap .mini{width:160px;flex-basis:auto}}
+footer{margin:26px 0 0;font-size:12px;color:var(--muted);font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
 </head>
 <body>
-    <header id="header">
-        <div class="title" title="Version 2025-02-07">Offline QR code generator</div>
-        <div class="expand"></div>
+<div class="wrap">
+<header>
+  <div class="mark"><b>QR</b> file ferry</div>
+  <div class="tagline">Move a file across an air gap, one screenful of light at a time.</div>
+  <div class="tabs" role="tablist">
+    <button id="tab-send" role="tab" aria-selected="true" aria-controls="send">Send</button>
+    <button id="tab-recv" role="tab" aria-selected="false" aria-controls="recv">Receive</button>
+  </div>
+</header>
 
-        <div id="button-settings" class="button">Settings</div>
-        <a id="download" href="" download>Download</a>
-        <a href="https://github.com/six-two/qr.html" target="_blank" rel="noopener noreferrer">Source code</a>
-    </header>
-    <div id="settings">
-        <label><abbr title="Higher values mean bigger QR codes and thus allow fewer contents. But higher values also allow for more damage to printed codes like coffee stains, water damage, partially covered areas, etc">Error correction level</abbr>
-            <select id="setting-ecc">
-                <option value="H">High (up to 30% damage, maximum size 1273 bytes)</option>
-                <option value="Q">Quartile (up to 25% damage, maximum size 1663 bytes)</option>
-                <option value="M">Medium (up to 15% damage, maximum size 2331 bytes)</option>
-                <option value="L">Low (up to 7% damage, maximum size 2953 bytes)</option>
-            </select>
-        </label>
-        <label><abbr title="What to do when you click on the QR code below">QR code click action</abbr>
-            <select id="setting-format">
-                <option value="file.png">Download as PNG</option>
-                <option value="file.svg">Download as SVG</option>
-                <option value="copy.png">Copy as PNG</option>
-            </select>
-        </label>
-        <label>Border size<input id="setting-border-size" /></label>
-        <label><abbr title="This setting determined how many pixels are used for each (black or white) square">QR scale</abbr><input id="setting-scale" /></label>
-        <label>Black color<input id="setting-color-black" /></label>
-        <label>White color<input id="setting-color-white" /></label>
-        <button id="monitor-clipboard" class="button"></button>
-    </div>
-    <div id="text-and-qr">
-        <div id="input-div">
-            <div id="input-error" class="error"></div>
-            <textarea id="input" name="input" placeholder="Type the data you want to convert to a QR code here. Alternatively you can try to drag and drop or copy-paste a file in this text box, but not all browsers/operating systems support that." id="" autofocus>You can generate QR codes from any text by typing, copy-pasting or dragging and dropping text into this text box. This includes special characters (like chinese), emojis, etc. Depending on the contents, the maximum size of a QR code is usually about 2953 characters (bytes). If you only type digits or upper case letters, they can be stored more efficiently (up to 4296 upper case letters or 7089 digits per QR code).
-
-If the layout looks strange, try resizing your browser window. The layout always tries to maximize the QR code's size, which can look strange sometimes.
-
-The QR code generation is performed on your local device, no data is sent anywhere. You can even download this file (see button on the top right) and use it when you are not connected to the Internet. To download the QR code, you can just click on it.
-
-Here are some examples of what you can do with QR codes:
-- Link to a website: https://your-website.com/some/page?with=parameters
-- Share email address: mailto:your.name@gmail.com
-- Share phone number: tel:+49123456789
-- Share WLAN network password: WIFI:T:WPA;S:Your WLAN name;P:Your WLAN password;;
-- Send SMS (RFC 5724): sms:+49123456789,+4179123456?body=Hello you two!
-- Send SMS (legacy protocol): smsto:+49123456789:Hi John, how are you?
-- Send email: mailto:recipient@example.com?subject=Test email&body=This is a test email
-- Add second factor to Google Authenticator: otpauth://totp/Issuer Name:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Issuer Name
-
-⚠️ Some features will not work in some browsers. In my experience Google Chrome works best. ⚠️
-</textarea>
+<!-- ============ SEND ============ -->
+<section class="panel on" id="send" role="tabpanel" aria-labelledby="tab-send">
+<div class="grid">
+  <div>
+    <div class="card">
+      <span class="label">1 · Open the receiver on the phone</span>
+      <div class="bootstrap">
+        <div class="mini" id="boot-qr"></div>
+        <div>
+          <p class="hint" style="margin-top:0">Scan this with any QR scanner. It opens this same page on the phone, already on the Receive tab.</p>
+          <div class="field" style="margin-top:10px">
+            <input type="url" id="boot-url" spellcheck="false" autocomplete="off">
+          </div>
         </div>
-        <div id="qrcode"><div class="error">You need to enable JavaScript to use this page</div></div>
+      </div>
     </div>
 
-<script type="text/javascript">
-    const header = document.getElementById("header");
-    const qrcode = document.getElementById("qrcode");
-    const input_area = document.getElementById("input");
-    const input_error = document.getElementById("input-error");
-    const text_and_qr = document.getElementById("text-and-qr");
-    const settings_div = document.getElementById("settings");
-    const ecc_dropdown = document.getElementById("setting-ecc");
-    const format_dropdown = document.getElementById("setting-format");
-    const settings_button = document.getElementById("button-settings");
-    const borderSizeTextbox = document.getElementById("setting-border-size");
-    const colorBlackTextbox = document.getElementById("setting-color-black");
-    const colorWhiteTextbox = document.getElementById("setting-color-white");
-    const scaleTextbox = document.getElementById("setting-scale");
-    
-    let ecc_level = "TODO";
-    let max_size_digits = "TODO";
-    let max_size_alpha_numeric = "TODO";
-    let max_size_byte = "TODO";
-    let estimated_size_emoji = "TODO";
+    <div class="card">
+      <span class="label">2 · Choose a file</span>
+      <div id="drop" tabindex="0" role="button">
+        <strong>Drop a file here</strong>
+        <span>or click to browse · paste with Ctrl/Cmd-V · several files become one zip</span>
+      </div>
+      <input type="file" id="picker" multiple>
+      <dl class="readout" id="readout" hidden>
+        <div><dt>File</dt><b id="r-name">—</b></div>
+        <div><dt>Original</dt><b id="r-orig">—</b></div>
+        <div><dt>Compressed</dt><b id="r-comp">—</b></div>
+        <div><dt>Per code</dt><b id="r-per">—</b></div>
+        <div><dt>Codes to scan</dt><b id="r-codes">—</b></div>
+      </dl>
+      <div class="status" id="send-status"></div>
 
-    window.addEventListener("load", () => {
-        // This needs to be done after loading the library
-        setEccLevel(ERROR_CORRECTION_LEVEL);
-    })
+      <details id="adv">
+        <summary>Code density and options</summary>
+        <div class="field">
+          <span class="label">Preset</span>
+          <select id="preset">
+            <option value="15,M">Forgiving — small codes, most of them will scan first try</option>
+            <option value="22,M" selected>Standard — good balance on a laptop screen</option>
+            <option value="30,L">Dense — fewer codes, needs a steady hand</option>
+            <option value="40,L">Maximum — 177×177 modules, big screen and good camera only</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="label">Error correction</span>
+          <select id="ecc">
+            <option value="L">L · 7% redundancy — most capacity</option>
+            <option value="M" selected>M · 15% — recommended for screens</option>
+            <option value="Q">Q · 25% — glossy screens, poor light</option>
+            <option value="H">H · 30% — maximum tolerance</option>
+          </select>
+        </div>
+        <p class="hint">Everything happens in this page. Nothing is uploaded, and the page cannot reach the network at all.</p>
+      </details>
+    </div>
+  </div>
 
-    const onHashUpdate = () => {
-        if (location.hash.length > 1) {
-            let initial_value = location.hash.slice(1); // remove leading '#'
-            initial_value = decodeURIComponent(initial_value); // URL encoded because of special characters
-            console.log("Using initial value from URL hash:", initial_value);
-            input_area.value = initial_value;
-        }
-    }
+  <div class="stage">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="sheet empty" id="sheet">Pick a file and the codes appear here, one at a time.</div>
+    <div class="counter">
+      <span class="now" id="c-now">00</span><span class="of" id="c-of">/ 00</span>
+      <span class="stat" id="c-stat">no file loaded</span>
+    </div>
+    <div class="rail" id="rail"></div>
+    <div class="nav">
+      <button class="act" id="prev" disabled>← Back</button>
+      <button class="act primary wide" id="next" disabled>Next code →</button>
+    </div>
+    <p class="hint">Scan the code, then press Next. Arrow keys and the spacebar work too. Every code is self-labelled, so order doesn't matter — scan them in any sequence you like.</p>
+  </div>
+</div>
+</section>
 
-    // You can set the initial value of the page via the # after the URL. This enables stuff like links and bookmarks for common values
-    // we use the hash instead of an URL parameter, since the hash is never sent to a server -> better privacy (only relevant if you use the hosted version)
-    onHashUpdate();
-    // If the user changes the hash, we should update the text box with it
-    window.addEventListener("hashchange", onHashUpdate);
+<!-- ============ RECEIVE ============ -->
+<section class="panel" id="recv" role="tabpanel" aria-labelledby="tab-recv">
+<div class="grid">
+  <div>
+    <div class="card">
+      <span class="label">How this works</span>
+      <ol class="steps">
+        <li>Scan a code on the other screen with any QR scanner.</li>
+        <li><b>Paste the scanned text</b> into the box. The box clears itself, ready for the next one.</li>
+        <li>Repeat until the bar below is full, then save the file.</li>
+      </ol>
+      <p class="hint">Scan them in any order. Duplicates are ignored. You can also paste several codes at once.</p>
+    </div>
+    <div class="card">
+      <span class="label">Paste scanned codes</span>
+      <textarea id="inbox" placeholder="QZ1:… paste here" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="act" id="paste-btn">Paste from clipboard</button>
+        <button class="act" id="clear-btn">Start over</button>
+      </div>
+      <div class="status" id="recv-status"></div>
+      <div class="missing" id="missing"></div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <div class="counter">
+        <span class="now" id="d-now">00</span><span class="of" id="d-of">/ 00</span>
+        <span class="stat" id="d-stat">waiting for the first code</span>
+      </div>
+      <div class="rail" id="drail"></div>
+      <div id="result-slot"></div>
+    </div>
+  </div>
+</div>
+</section>
 
-    const PADDING = 10; // 5px on any side for the text-and-qr element -> always 10px in total
+<footer>Works offline · save this page and it keeps working · one file, no server, no network access</footer>
+</div>
 
-    const showInputError = (message) => {
-        // message is untrusted input, so we should escape it properly
-        if (message) {
-            input_error.innerHTML = ""; // remove current children
-            const messageElement = document.createTextNode(message);
-            input_error.appendChild(messageElement);
-            input_error.style.display = "block";
-        } else {
-            input_error.style.display = "none";
-        }
-    }
-
-    const showQrCodeGenerationError = (message) => {
-        // Bad practice, but XSS should not be possible
-        qrcode.innerHTML = `<div class="error"><b>QR code generation failed:</b><br>${message}</div>`;
-    }
-
-    const updateQRCode = () => {
-        const max_size_fit_window = Math.min(qrcode.clientWidth, qrcode.clientHeight, QR_MAX_SIZE);
-        const qr_size = Math.max(QR_MIN_SIZE, max_size_fit_window) - 10; // remove 2 * 5px for the paddings
-        const text = input_area.value;
-
-        if (!text) {
-            showQrCodeGenerationError("You need to type some text in the input area! It will then be rendered as a QR code.");
-            return
-        }
-
-        try {
-            window.qr_code_object = qrcodegen.QrCode.encodeText(text, ecc_level);
-            window.qr_code_svg = toSvgString(qr_code_object, QR_BORDER_SIZE, QR_WHITE, QR_BLACK);            
-            qrcode.innerHTML = window.qr_code_svg;
-        } catch (error) {
-            window.qr_code_svg = null;
-            window.qr_code_object = null;
-            suggestions = '<li><a href="javascript:fixByCuttingTextOfAfterQrCodeMaximumSize()">Cut off the input that does not fit into the QR code</a>';
-            if (/[^A-Z0-9 $%*+.\/:-]+/.test(text)) {
-                // Contains non alphanum characters
-                suggestions += '<li><a href="javascript:tryFixByConvertingToAlphaNum()">Convert to alpha numeric</a>: Try to map Unicode to nearest ASCII character, make all letters uppercase and remove all special or unicode characters except for "$%*+-./:"';
-            }
-            if (ecc_level != qrcodegen.QrCode.Ecc.LOW) {
-                // The ecc level is not at the lowest setting
-                suggestions += `<li><a href="javascript:setEccLevel('L')">Use the lowest error correction level</a>`
-            }
-            suggestions += `<li><a href="qr-zip.html#${encodeURIComponent(text)}">ZIP the data in the QR code</a>: If you do this, most QR code readers will no longer support your QR code. You need specialized software to read the resulting QR code like zbarimg and bsdtar.`
-
-            showQrCodeGenerationError(`Failed to generate the QR code! Your text is ${text.length} characters long. Please try a shorter text and try removing special characters and emojis. Maximum length depends on the contents and error correction level. With the current error correction level you can fit the following number of characters:
-
-<ul>
-<li>digits (<i>0123456789</i>) -> ${max_size_digits}
-<li>alphanumeric (<i>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:</i>) -> ${max_size_alpha_numeric}
-<li>byte (<i>Any ASCII character</i>) -> ${max_size_byte}
-<li>Emoji (<i>Stadard emoji without modifiers like 😀</i>) -> Around ${estimated_size_emoji}
-</ul>
-<br>
-The following functions can try to help:
-<ul>
-    ${suggestions}
-</ul>
-`);
-               // console.error("Error while generating QR code", error);
-        }
-    };
-
-    const setEccLevel = (eccLevelString) => {
-        const ECC_MAP = {
-            "L": qrcodegen.QrCode.Ecc.LOW,
-            "M": qrcodegen.QrCode.Ecc.MEDIUM,
-            "Q": qrcodegen.QrCode.Ecc.QUARTILE,
-            "H": qrcodegen.QrCode.Ecc.HIGH,
-        }
-        try {
-            ecc_level = ECC_MAP[eccLevelString];
-        } catch {
-            console.warn(`Unknown error correction level '${eccLevelString}', defaulting to 'L' (low)`);
-            ecc_level = qrcodegen.QrCode.Ecc.LOW;
-        }
-        max_size_digits = getMaxQrCodeLength("0", ecc_level);
-        max_size_alpha_numeric = getMaxQrCodeLength("A", ecc_level);
-        max_size_byte = getMaxQrCodeLength("a", ecc_level);
-        estimated_size_emoji = getMaxQrCodeLength("😀", ecc_level);
-
-        if (ecc_dropdown.value != eccLevelString) {
-            ecc_dropdown.value = eccLevelString
-        }
-    }
-
-    const fixByCuttingTextOfAfterQrCodeMaximumSize = () => {
-        input_area.value = getMaxQrCodeString(input_area.value, ecc_level);
-    }
-
-    const tryFixByConvertingToAlphaNum = () => {
-        input_area.value = unicodeToAlphanumericOnly(input_area.value);
-    }
-
-    const unicodeToAlphanumericOnly = (string) => {
-        // Convert all whitespace to spaces
-        string = string.replaceAll("\t", "    ").replaceAll(/\s/g, " ");
-
-        // This rewrites the unicode so that ä becomes a + a diacritic mark. Later on we can drop the diacritic. This way we convert it to the nearest unicode character
-        string = string.normalize("NFD");
-        
-        // The alphanumeric charset allows only uppercase characters, so we convert all lowercase ones
-        string = string.toUpperCase();
-
-        // Finally we drop all not allowed characters (or replace them with a place holder like '.'?)
-        string = string.replaceAll(/[^A-Z0-9 $%*+.\/:-]+/g, "");
-
-        return string;
-    }
-    window.test = unicodeToAlphanumericOnly;
-
-    const getMaxQrCodeLength = (character, ecc_level) => {
-        const string = character.repeat(7089); // From https://en.wikipedia.org/wiki/QR_code#Information_capacity -> maximum numeric only value
-        return getMaxQrCodeString(string, ecc_level).length;
-    }
-
-    const getMaxQrCodeString = (string_to_try_to_use, ecc_level) => {        
-        try {
-            // First check whether the whole string fits
-            qrcodegen.QrCode.encodeText(string_to_try_to_use, ecc_level);
-            return string_to_try_to_use
-        } catch {
-            // If not, binary search for the cutof point
-            let min = 0;
-            let max = string_to_try_to_use.length;
-            while (min < max) {
-                const middle = Math.ceil((min + max) / 2);
-                try {
-                    qrcodegen.QrCode.encodeText(string_to_try_to_use.slice(0, middle), ecc_level);
-                    // QR code generation worked -> set minimum to this size
-                    min = middle;
-                } catch (ex) {
-                    // QR code generation failed -> set maximum to middle - 1
-                    max = middle - 1;
-                    //console.error(ex);
-                }
-                console.log(`Max length between ${min} and ${max} for ${string_to_try_to_use.slice(0, 10)}...`);
-            }
-            console.log(`Determined maxiumu length ${min} for ${string_to_try_to_use.slice(0, 10)}...`);
-            return string_to_try_to_use.slice(0, min);
-        }
-    }
-
-    const handleFileUpload = (files) => {
-        if (files.length == 1) {
-            files[0].text().then(file_text => {
-                console.log("Received file:\n", file_text);
-                // Update the text field and the QR code
-                input_area.value = file_text
-                showInputError();
-                updateQRCode();
-            }).catch(error => {
-                showInputError(`Error reading the file: ${error}`);
-            })
-        } else {
-            showInputError(`Received ${files.length} files. Please use only one file at a time.`);
-        }
-    };
-
-    // Handle pasting a file (copying if in file manager and them pressing Crtl-V [Cmd-V on Mac] while in the browser)
-    document.addEventListener("paste", async e => {
-        if (e.clipboardData.files.length == 0) {
-            // do not prevent the default action, since it would break normal copy + paste
-            return
-        } else {
-            // process files as a file upload
-            e.preventDefault();
-            handleFileUpload(e.clipboardData.files)
-        }
-    });
-
-    // Support drag and drop for the input element
-    input_area.addEventListener("drop", e => {
-        // process files as a file upload
-        e.preventDefault();
-        handleFileUpload(e.dataTransfer.files)
-        return false;
-    });
-
-    // Provide a way to download the QR code by clicking it
-    const on_qr_code_clicked_action = () => {
-        if (window.qr_code_svg) {
-            if (CLICK_ACTION == "file.png") {
-                download_qr_code_as_file(true);
-            } else if (CLICK_ACTION == "file.svg") {
-                download_qr_code_as_file(false);
-            } else if (CLICK_ACTION == "copy.png") {
-                copy_qr_code_to_clipboard();
-            } else {
-                console.error("Unknown click action:", CLICK_ACTION)
-            }
-        }
-    }
-
-    const download_qr_code_as_file = (use_png) => {
-        const download_link_tag = document.createElement("a");
-        const date_string = new Date().toISOString().replace("T", "_").replace(/\.\d+.$/, "_UTC").replaceAll(":", "-"); // Looks like "2025-02-07_04-44-34_UTC"
-        const file_extension = use_png ? "png" : "svg"
-        download_link_tag.href = get_qr_code_data_url(use_png);
-        download_link_tag.download = `qr_code_${date_string}.${file_extension}`;
-        download_link_tag.click();
-    }
-
-    const copy_qr_code_to_clipboard = () => {
-        const data_url = get_qr_code_data_url(true);
-        fetch(data_url)
-            .then(response => response.blob())
-            .then(blob => {
-                navigator.clipboard.write([
-                    new ClipboardItem({
-                        [blob.type]: blob
-                    })
-                ]);
-            })
-            .catch(error => console.error("Uncaught error during QR code copy:", error));
-    }
-
-
-    const get_qr_code_data_url = (use_png) => {
-        if (use_png) {
-            const canvas = document.createElement("canvas");
-            drawCanvas(window.qr_code_object, QR_SCALE, QR_BORDER_SIZE, QR_WHITE, QR_BLACK, canvas);
-            return canvas.toDataURL("image/png");
-        } else {
-            const blob = new Blob([window.qr_code_svg],{type:"application/octet-stream"});
-            const blob_url = URL.createObjectURL(blob);
-            return blob_url;
-        }
-    }
-    qrcode.addEventListener("click", on_qr_code_clicked_action);
-    qrcode.style.cursor = "pointer";
-
-    // Update the QR code whenever the text or the window size changes
-    // Use max-width/height to keep the QR code div in square shape and allow the textarea to use the remaining space
-    input_area.addEventListener("input", updateQRCode);
-    const on_window_resize = () => {
-        const width = text_and_qr.clientWidth;
-        const height = text_and_qr.clientHeight;
-        if (!width || !height) {
-            console.warn(`Size can not be 0 or undefined. But size is (${width}, ${height})`)
-            return;
-        }
-        const header_and_settings_height = header.clientHeight + settings_div.clientHeight;
-        const textarea_min_height = 100;
-        const textarea_min_width = 200;
-
-        const toStyleValue = (size_in_pixels) => {
-            return `${Math.max(size_in_pixels - PADDING, 0)}px`;
-        };
-        if (width < height) {
-            // portrait view -> vertical
-            const remaining_height = document.body.clientHeight - header_and_settings_height - textarea_min_height; 
-
-            text_and_qr.style.flexDirection = "column";
-            // Limit bot width and height, so that it does not get cut off, if there is more width than height 
-            qrcode.style.maxWidth = toStyleValue(Math.min(width, remaining_height));
-            qrcode.style.maxHeight = toStyleValue(Math.min(width, remaining_height));
-        } else {
-            // landscape view -> horizontal
-            const remaining_width = document.body.clientWidth - textarea_min_width;
-            text_and_qr.style.flexDirection = "row";
-            qrcode.style.maxWidth = toStyleValue(Math.min(height, remaining_width));
-            // Workaround for QR code not shrinking
-            qrcode.style.maxHeight = toStyleValue(document.body.clientHeight - header_and_settings_height);
-        }
-
-        updateQRCode();
-    };
-
-    window.addEventListener("resize", on_window_resize);
-
-    // sometimes the event does not get called (for example when closing the browser console). So we call it regularly just to be sure
-    setInterval(on_window_resize, 1000)
-    // Call it shortly after loading the page to determine the inital layout
-    setTimeout(on_window_resize, 10);
-
-    // Handle the settings panel
-    ecc_dropdown.value = ERROR_CORRECTION_LEVEL;
-    ecc_dropdown.addEventListener("change", () => {
-        ERROR_CORRECTION_LEVEL = ecc_dropdown.value;
-        console.log("Set ECC level to", ERROR_CORRECTION_LEVEL);
-        localStorage.setItem("ERROR_CORRECTION_LEVEL", ERROR_CORRECTION_LEVEL);
-        setEccLevel(ERROR_CORRECTION_LEVEL);
-    });
-
-    format_dropdown.value = CLICK_ACTION;
-    format_dropdown.addEventListener("change", () => {
-        CLICK_ACTION = format_dropdown.value;
-        console.log("Set click action to", CLICK_ACTION);
-        localStorage.setItem("CLICK_ACTION", CLICK_ACTION);
-    });
-
-    borderSizeTextbox.value = QR_BORDER_SIZE;
-    borderSizeTextbox.addEventListener("change", () => {
-        QR_BORDER_SIZE = parseInt(borderSizeTextbox.value);
-        console.log(`Change QR code border size to ${QR_BORDER_SIZE} (${borderSizeTextbox.value})`);
-        localStorage.setItem("QR_BORDER_SIZE", `${QR_BORDER_SIZE}`);
-    });
-
-    scaleTextbox.value = QR_SCALE;
-    scaleTextbox.addEventListener("change", () => {
-        QR_SCALE = parseInt(scaleTextbox.value);
-        console.log(`Change QR code scale to ${QR_SCALE} (${scaleTextbox.value})`);
-        localStorage.setItem("QR_SCALE", `${QR_SCALE}`);
-    });
-
-    colorBlackTextbox.value = QR_BLACK;
-    colorBlackTextbox.addEventListener("change", () => {
-        QR_BLACK = colorBlackTextbox.value;
-        console.log(`Change QR code black color to ${QR_BLACK}`);
-        localStorage.setItem("QR_BLACK", `${QR_BLACK}`);
-    });
-
-    colorWhiteTextbox.value = QR_WHITE;
-    colorWhiteTextbox.addEventListener("change", () => {
-        QR_WHITE = colorWhiteTextbox.value;
-        console.log(`Change QR code white color to ${QR_WHITE}`);
-        localStorage.setItem("QR_WHITE", `${QR_WHITE}`);
-    });
-
-    settings_button.addEventListener("click", () => {
-        var old_visible = settings_div.style.display == "flex";
-        settings_div.style.display = old_visible ? "none" : "flex";
-        settings_button.innerText = old_visible ? "Settings" : "Hide settings";
-    })
-
-    if (SHOW_CLIPBOARD_MONITORING_CONTROLS) {
-        let monitor_clipboard_enabled = false;
-        let clipboard_interval_handle;
-
-        const monitor_clipboard_menuitem = document.getElementById("monitor-clipboard");
-        const update_cb_mon_menuitem = () => monitor_clipboard_menuitem.innerText = monitor_clipboard_enabled ? "Stop clipboard monitoring" : "Start clipboard monitoring";
-        monitor_clipboard_menuitem.addEventListener("click", () => {
-            if (window.isSecureContext) {
-                if (monitor_clipboard_enabled) {
-                    console.log("Stopping clipboard monitoring");
-                    clearInterval(clipboard_interval_handle);
-                    monitor_clipboard_enabled = false;
-                    showInputError(); // clear the error just in case it was caused by the clipboard
-                } else {
-                    console.log("Starting clipboard monitoring");
-                    clipboard_interval_handle = setInterval(check_clipboard, 100);
-                    monitor_clipboard_enabled = true;
-                }
-            } else {
-                if (monitor_clipboard_enabled) {
-                    // enable the user to hide the message by pressing stop
-                    showInputError();
-                } else {
-                    showInputError("Clipboard can not be monitored, because the page is not a secure context. See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts for more details.")
-                }
-                monitor_clipboard_enabled = !monitor_clipboard_enabled;
-            }
-            update_cb_mon_menuitem()
-        });
-        update_cb_mon_menuitem();
-
-        let last_value_copied = "";
-
-        const check_clipboard = () => {
-            if (monitor_clipboard_enabled) {
-                console.debug("Reading clipboard");
-                let clipboard_promise;
-                try {
-                    clipboard_promise = navigator.clipboard.readText();
-                } catch (error) {
-                    // Firefox (at least on Linux and Mac) causes this
-                    showInputError('Failed to read clipboard contents. This is a known problem in Firefox, please try using a different Browser like Chrome, Edge, etc (anything except Internet Explorer). If you only have Firefox, you could enable Clipboard access by typing "about:config" in the URL bar, searching for "dom.events.testing.asyncClipboard" and setting it to true (by double clicking). Afterwards you can reload the page. Please note, that doing this may have severe security implications, since other websites will be able to read your clipboard, which may contain sensitive information such as passwords.');
-                    return;
-                }
-                clipboard_promise.then(
-                    clip_text => {
-                        // Only update the text when a different value is copied. This allows the user to change the text without it being reset every second.
-                        if (clip_text && clip_text != last_value_copied) {
-                            input.value = clip_text;
-                            last_value_copied = clip_text;
-                        }
-                        showInputError();
-                    }
-                ).catch(error => {
-                    // This error only occured on Mac with Safari
-                    showInputError(`Failed to read clipboard contents because of the following error: ${error}`);
-                });
-            }
-        };
-    }
-
-// ======= https://github.com/nayuki/QR-Code-generator, Copyright © 2024 Project Nayuki. (MIT License) =======
-// Minified version of https://github.com/nayuki/QR-Code-generator/releases/download/v1.8.0/qrcodegen-v1.8.0-es6.js using https://closure-compiler.appspot.com/
+<script>// https://github.com/101arrowz/fflate, Copyright (c) 2023 Arjun Barrett (MIT License)
+// Obtained from https://unpkg.com/fflate@0.8.2
+!function(f){typeof module!='undefined'&&typeof exports=='object'?module.exports=f():typeof define!='undefined'&&define.amd?define(f):(typeof self!='undefined'?self:this).fflate=f()}(function(){var _e={};"use strict";var t=(typeof module!='undefined'&&typeof exports=='object'?function(_f){"use strict";var e,t=";var __w=require('worker_threads');__w.parentPort.on('message',function(m){onmessage({data:m})}),postMessage=function(m,t){__w.parentPort.postMessage(m,t)},close=process.exit;self=global";try{e=require("worker_threads").Worker}catch(e){}exports.default=e?function(r,n,o,a,s){var u=!1,i=new e(r+t,{eval:!0}).on("error",(function(e){return s(e,null)})).on("message",(function(e){return s(null,e)})).on("exit",(function(e){e&&!u&&s(Error("exited with code "+e),null)}));return i.postMessage(o,a),i.terminate=function(){return u=!0,e.prototype.terminate.call(i)},i}:function(e,t,r,n,o){setImmediate((function(){return o(Error("async operations unsupported - update to Node 12+ (or Node 10-11 with the --experimental-worker CLI flag)"),null)}));var a=function(){};return{terminate:a,postMessage:a}};return _f}:function(_f){"use strict";var e={};_f.default=function(r,t,s,a,n){var o=new Worker(e[t]||(e[t]=URL.createObjectURL(new Blob([r+';addEventListener("error",function(e){e=e.error;postMessage({$e$:[e.message,e.code,e.stack]})})'],{type:"text/javascript"}))));return o.onmessage=function(e){var r=e.data,t=r.$e$;if(t){var s=Error(t[0]);s.code=t[1],s.stack=t[2],n(s,null)}else n(null,r)},o.postMessage(s,a),o};return _f})({}),n=Uint8Array,r=Uint16Array,e=Int32Array,i=new n([0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0,0]),o=new n([0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,0,0]),s=new n([16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15]),a=function(t,n){for(var i=new r(31),o=0;o<31;++o)i[o]=n+=1<<t[o-1];var s=new e(i[30]);for(o=1;o<30;++o)for(var a=i[o];a<i[o+1];++a)s[a]=a-i[o]<<5|o;return{b:i,r:s}},u=a(i,2),h=u.b,f=u.r;h[28]=258,f[258]=28;for(var l=a(o,0),c=l.b,p=l.r,v=new r(32768),d=0;d<32768;++d){var g=(43690&d)>>1|(21845&d)<<1;v[d]=((65280&(g=(61680&(g=(52428&g)>>2|(13107&g)<<2))>>4|(3855&g)<<4))>>8|(255&g)<<8)>>1}var y=function(t,n,e){for(var i=t.length,o=0,s=new r(n);o<i;++o)t[o]&&++s[t[o]-1];var a,u=new r(n);for(o=1;o<n;++o)u[o]=u[o-1]+s[o-1]<<1;if(e){a=new r(1<<n);var h=15-n;for(o=0;o<i;++o)if(t[o])for(var f=o<<4|t[o],l=n-t[o],c=u[t[o]-1]++<<l,p=c|(1<<l)-1;c<=p;++c)a[v[c]>>h]=f}else for(a=new r(i),o=0;o<i;++o)t[o]&&(a[o]=v[u[t[o]-1]++]>>15-t[o]);return a},m=new n(288);for(d=0;d<144;++d)m[d]=8;for(d=144;d<256;++d)m[d]=9;for(d=256;d<280;++d)m[d]=7;for(d=280;d<288;++d)m[d]=8;var b=new n(32);for(d=0;d<32;++d)b[d]=5;var w=y(m,9,0),x=y(m,9,1),z=y(b,5,0),k=y(b,5,1),M=function(t){for(var n=t[0],r=1;r<t.length;++r)t[r]>n&&(n=t[r]);return n},S=function(t,n,r){var e=n/8|0;return(t[e]|t[e+1]<<8)>>(7&n)&r},A=function(t,n){var r=n/8|0;return(t[r]|t[r+1]<<8|t[r+2]<<16)>>(7&n)},T=function(t){return(t+7)/8|0},D=function(t,r,e){return(null==r||r<0)&&(r=0),(null==e||e>t.length)&&(e=t.length),new n(t.subarray(r,e))};_e.FlateErrorCode={UnexpectedEOF:0,InvalidBlockType:1,InvalidLengthLiteral:2,InvalidDistance:3,StreamFinished:4,NoStreamHandler:5,InvalidHeader:6,NoCallback:7,InvalidUTF8:8,ExtraFieldTooLong:9,InvalidDate:10,FilenameTooLong:11,StreamFinishing:12,InvalidZipData:13,UnknownCompressionMethod:14};var C=["unexpected EOF","invalid block type","invalid length/literal","invalid distance","stream finished","no stream handler",,"no callback","invalid UTF-8 data","extra field too long","date not in range 1980-2099","filename too long","stream finishing","invalid zip data"],I=function(t,n,r){var e=Error(n||C[t]);if(e.code=t,Error.captureStackTrace&&Error.captureStackTrace(e,I),!r)throw e;return e},U=function(t,r,e,a){var u=t.length,f=a?a.length:0;if(!u||r.f&&!r.l)return e||new n(0);var l=!e,p=l||2!=r.i,v=r.i;l&&(e=new n(3*u));var d=function(t){var r=e.length;if(t>r){var i=new n(Math.max(2*r,t));i.set(e),e=i}},g=r.f||0,m=r.p||0,b=r.b||0,w=r.l,z=r.d,C=r.m,U=r.n,F=8*u;do{if(!w){g=S(t,m,1);var E=S(t,m+1,3);if(m+=3,!E){var Z=t[(J=T(m)+4)-4]|t[J-3]<<8,q=J+Z;if(q>u){v&&I(0);break}p&&d(b+Z),e.set(t.subarray(J,q),b),r.b=b+=Z,r.p=m=8*q,r.f=g;continue}if(1==E)w=x,z=k,C=9,U=5;else if(2==E){var O=S(t,m,31)+257,G=S(t,m+10,15)+4,L=O+S(t,m+5,31)+1;m+=14;for(var H=new n(L),j=new n(19),N=0;N<G;++N)j[s[N]]=S(t,m+3*N,7);m+=3*G;var P=M(j),B=(1<<P)-1,Y=y(j,P,1);for(N=0;N<L;){var J,K=Y[S(t,m,B)];if(m+=15&K,(J=K>>4)<16)H[N++]=J;else{var Q=0,R=0;for(16==J?(R=3+S(t,m,3),m+=2,Q=H[N-1]):17==J?(R=3+S(t,m,7),m+=3):18==J&&(R=11+S(t,m,127),m+=7);R--;)H[N++]=Q}}var V=H.subarray(0,O),W=H.subarray(O);C=M(V),U=M(W),w=y(V,C,1),z=y(W,U,1)}else I(1);if(m>F){v&&I(0);break}}p&&d(b+131072);for(var X=(1<<C)-1,$=(1<<U)-1,_=m;;_=m){var tt=(Q=w[A(t,m)&X])>>4;if((m+=15&Q)>F){v&&I(0);break}if(Q||I(2),tt<256)e[b++]=tt;else{if(256==tt){_=m,w=null;break}var nt=tt-254;tt>264&&(nt=S(t,m,(1<<(it=i[N=tt-257]))-1)+h[N],m+=it);var rt=z[A(t,m)&$],et=rt>>4;if(rt||I(3),m+=15&rt,W=c[et],et>3){var it=o[et];W+=A(t,m)&(1<<it)-1,m+=it}if(m>F){v&&I(0);break}p&&d(b+131072);var ot=b+nt;if(b<W){var st=f-W,at=Math.min(W,ot);for(st+b<0&&I(3);b<at;++b)e[b]=a[st+b]}for(;b<ot;++b)e[b]=e[b-W]}}r.l=w,r.p=_,r.b=b,r.f=g,w&&(g=1,r.m=C,r.d=z,r.n=U)}while(!g);return b!=e.length&&l?D(e,0,b):e.subarray(0,b)},F=function(t,n,r){var e=n/8|0;t[e]|=r<<=7&n,t[e+1]|=r>>8},E=function(t,n,r){var e=n/8|0;t[e]|=r<<=7&n,t[e+1]|=r>>8,t[e+2]|=r>>16},Z=function(t,e){for(var i=[],o=0;o<t.length;++o)t[o]&&i.push({s:o,f:t[o]});var s=i.length,a=i.slice();if(!s)return{t:N,l:0};if(1==s){var u=new n(i[0].s+1);return u[i[0].s]=1,{t:u,l:1}}i.sort((function(t,n){return t.f-n.f})),i.push({s:-1,f:25001});var h=i[0],f=i[1],l=0,c=1,p=2;for(i[0]={s:-1,f:h.f+f.f,l:h,r:f};c!=s-1;)h=i[i[l].f<i[p].f?l++:p++],f=i[l!=c&&i[l].f<i[p].f?l++:p++],i[c++]={s:-1,f:h.f+f.f,l:h,r:f};var v=a[0].s;for(o=1;o<s;++o)a[o].s>v&&(v=a[o].s);var d=new r(v+1),g=q(i[c-1],d,0);if(g>e){o=0;var y=0,m=g-e,b=1<<m;for(a.sort((function(t,n){return d[n.s]-d[t.s]||t.f-n.f}));o<s;++o){var w=a[o].s;if(!(d[w]>e))break;y+=b-(1<<g-d[w]),d[w]=e}for(y>>=m;y>0;){var x=a[o].s;d[x]<e?y-=1<<e-d[x]++-1:++o}for(;o>=0&&y;--o){var z=a[o].s;d[z]==e&&(--d[z],++y)}g=e}return{t:new n(d),l:g}},q=function(t,n,r){return-1==t.s?Math.max(q(t.l,n,r+1),q(t.r,n,r+1)):n[t.s]=r},O=function(t){for(var n=t.length;n&&!t[--n];);for(var e=new r(++n),i=0,o=t[0],s=1,a=function(t){e[i++]=t},u=1;u<=n;++u)if(t[u]==o&&u!=n)++s;else{if(!o&&s>2){for(;s>138;s-=138)a(32754);s>2&&(a(s>10?s-11<<5|28690:s-3<<5|12305),s=0)}else if(s>3){for(a(o),--s;s>6;s-=6)a(8304);s>2&&(a(s-3<<5|8208),s=0)}for(;s--;)a(o);s=1,o=t[u]}return{c:e.subarray(0,i),n:n}},G=function(t,n){for(var r=0,e=0;e<n.length;++e)r+=t[e]*n[e];return r},L=function(t,n,r){var e=r.length,i=T(n+2);t[i]=255&e,t[i+1]=e>>8,t[i+2]=255^t[i],t[i+3]=255^t[i+1];for(var o=0;o<e;++o)t[i+o+4]=r[o];return 8*(i+4+e)},H=function(t,n,e,a,u,h,f,l,c,p,v){F(n,v++,e),++u[256];for(var d=Z(u,15),g=d.t,x=d.l,k=Z(h,15),M=k.t,S=k.l,A=O(g),T=A.c,D=A.n,C=O(M),I=C.c,U=C.n,q=new r(19),H=0;H<T.length;++H)++q[31&T[H]];for(H=0;H<I.length;++H)++q[31&I[H]];for(var j=Z(q,7),N=j.t,P=j.l,B=19;B>4&&!N[s[B-1]];--B);var Y,J,K,Q,R=p+5<<3,V=G(u,m)+G(h,b)+f,W=G(u,g)+G(h,M)+f+14+3*B+G(q,N)+2*q[16]+3*q[17]+7*q[18];if(c>=0&&R<=V&&R<=W)return L(n,v,t.subarray(c,c+p));if(F(n,v,1+(W<V)),v+=2,W<V){Y=y(g,x,0),J=g,K=y(M,S,0),Q=M;var X=y(N,P,0);for(F(n,v,D-257),F(n,v+5,U-1),F(n,v+10,B-4),v+=14,H=0;H<B;++H)F(n,v+3*H,N[s[H]]);v+=3*B;for(var $=[T,I],_=0;_<2;++_){var tt=$[_];for(H=0;H<tt.length;++H)F(n,v,X[rt=31&tt[H]]),v+=N[rt],rt>15&&(F(n,v,tt[H]>>5&127),v+=tt[H]>>12)}}else Y=w,J=m,K=z,Q=b;for(H=0;H<l;++H){var nt=a[H];if(nt>255){var rt;E(n,v,Y[257+(rt=nt>>18&31)]),v+=J[rt+257],rt>7&&(F(n,v,nt>>23&31),v+=i[rt]);var et=31&nt;E(n,v,K[et]),v+=Q[et],et>3&&(E(n,v,nt>>5&8191),v+=o[et])}else E(n,v,Y[nt]),v+=J[nt]}return E(n,v,Y[256]),v+J[256]},j=new e([65540,131080,131088,131104,262176,1048704,1048832,2114560,2117632]),N=new n(0),P=function(t,s,a,u,h,l){var c=l.z||t.length,v=new n(u+c+5*(1+Math.ceil(c/7e3))+h),d=v.subarray(u,v.length-h),g=l.l,y=7&(l.r||0);if(s){y&&(d[0]=l.r>>3);for(var m=j[s-1],b=m>>13,w=8191&m,x=(1<<a)-1,z=l.p||new r(32768),k=l.h||new r(x+1),M=Math.ceil(a/3),S=2*M,A=function(n){return(t[n]^t[n+1]<<M^t[n+2]<<S)&x},C=new e(25e3),I=new r(288),U=new r(32),F=0,E=0,Z=l.i||0,q=0,O=l.w||0,G=0;Z+2<c;++Z){var N=A(Z),P=32767&Z,B=k[N];if(z[P]=B,k[N]=P,O<=Z){var Y=c-Z;if((F>7e3||q>24576)&&(Y>423||!g)){y=H(t,d,0,C,I,U,E,q,G,Z-G,y),q=F=E=0,G=Z;for(var J=0;J<286;++J)I[J]=0;for(J=0;J<30;++J)U[J]=0}var K=2,Q=0,R=w,V=P-B&32767;if(Y>2&&N==A(Z-V))for(var W=Math.min(b,Y)-1,X=Math.min(32767,Z),$=Math.min(258,Y);V<=X&&--R&&P!=B;){if(t[Z+K]==t[Z+K-V]){for(var _=0;_<$&&t[Z+_]==t[Z+_-V];++_);if(_>K){if(K=_,Q=V,_>W)break;var tt=Math.min(V,_-2),nt=0;for(J=0;J<tt;++J){var rt=Z-V+J&32767,et=rt-z[rt]&32767;et>nt&&(nt=et,B=rt)}}}V+=(P=B)-(B=z[P])&32767}if(Q){C[q++]=268435456|f[K]<<18|p[Q];var it=31&f[K],ot=31&p[Q];E+=i[it]+o[ot],++I[257+it],++U[ot],O=Z+K,++F}else C[q++]=t[Z],++I[t[Z]]}}for(Z=Math.max(Z,O);Z<c;++Z)C[q++]=t[Z],++I[t[Z]];y=H(t,d,g,C,I,U,E,q,G,Z-G,y),g||(l.r=7&y|d[y/8|0]<<3,y-=7,l.h=k,l.p=z,l.i=Z,l.w=O)}else{for(Z=l.w||0;Z<c+g;Z+=65535){var st=Z+65535;st>=c&&(d[y/8|0]=g,st=c),y=L(d,y+1,t.subarray(Z,st))}l.i=c}return D(v,0,u+T(y)+h)},B=function(){for(var t=new Int32Array(256),n=0;n<256;++n){for(var r=n,e=9;--e;)r=(1&r&&-306674912)^r>>>1;t[n]=r}return t}(),Y=function(){var t=-1;return{p:function(n){for(var r=t,e=0;e<n.length;++e)r=B[255&r^n[e]]^r>>>8;t=r},d:function(){return~t}}},J=function(){var t=1,n=0;return{p:function(r){for(var e=t,i=n,o=0|r.length,s=0;s!=o;){for(var a=Math.min(s+2655,o);s<a;++s)i+=e+=r[s];e=(65535&e)+15*(e>>16),i=(65535&i)+15*(i>>16)}t=e,n=i},d:function(){return(255&(t%=65521))<<24|(65280&t)<<8|(255&(n%=65521))<<8|n>>8}}},K=function(t,r,e,i,o){if(!o&&(o={l:1},r.dictionary)){var s=r.dictionary.subarray(-32768),a=new n(s.length+t.length);a.set(s),a.set(t,s.length),t=a,o.w=s.length}return P(t,null==r.level?6:r.level,null==r.mem?o.l?Math.ceil(1.5*Math.max(8,Math.min(13,Math.log(t.length)))):20:12+r.mem,e,i,o)},Q=function(t,n){var r={};for(var e in t)r[e]=t[e];for(var e in n)r[e]=n[e];return r},R=function(t,n,r){for(var e=t(),i=""+t,o=i.slice(i.indexOf("[")+1,i.lastIndexOf("]")).replace(/\s+/g,"").split(","),s=0;s<e.length;++s){var a=e[s],u=o[s];if("function"==typeof a){n+=";"+u+"=";var h=""+a;if(a.prototype)if(-1!=h.indexOf("[native code]")){var f=h.indexOf(" ",8)+1;n+=h.slice(f,h.indexOf("(",f))}else for(var l in n+=h,a.prototype)n+=";"+u+".prototype."+l+"="+a.prototype[l];else n+=h}else r[u]=a}return n},V=[],W=function(t){var n=[];for(var r in t)t[r].buffer&&n.push((t[r]=new t[r].constructor(t[r])).buffer);return n},X=function(n,r,e,i){if(!V[e]){for(var o="",s={},a=n.length-1,u=0;u<a;++u)o=R(n[u],o,s);V[e]={c:R(n[a],o,s),e:s}}var h=Q({},V[e].e);return(0,t.default)(V[e].c+";onmessage=function(e){for(var k in e.data)self[k]=e.data[k];onmessage="+r+"}",e,h,W(h),i)},$=function(){return[n,r,e,i,o,s,h,c,x,k,v,C,y,M,S,A,T,D,I,U,Tt,it,ot]},_=function(){return[n,r,e,i,o,s,f,p,w,m,z,b,v,j,N,y,F,E,Z,q,O,G,L,H,T,D,P,K,kt,it]},tt=function(){return[pt,gt,ct,Y,B]},nt=function(){return[vt,dt]},rt=function(){return[yt,ct,J]},et=function(){return[mt]},it=function(t){return postMessage(t,[t.buffer])},ot=function(t){return t&&{out:t.size&&new n(t.size),dictionary:t.dictionary}},st=function(t,n,r,e,i,o){var s=X(r,e,i,(function(t,n){s.terminate(),o(t,n)}));return s.postMessage([t,n],n.consume?[t.buffer]:[]),function(){s.terminate()}},at=function(t){return t.ondata=function(t,n){return postMessage([t,n],[t.buffer])},function(n){n.data.length?(t.push(n.data[0],n.data[1]),postMessage([n.data[0].length])):t.flush()}},ut=function(t,n,r,e,i,o,s){var a,u=X(t,e,i,(function(t,r){t?(u.terminate(),n.ondata.call(n,t)):Array.isArray(r)?1==r.length?(n.queuedSize-=r[0],n.ondrain&&n.ondrain(r[0])):(r[1]&&u.terminate(),n.ondata.call(n,t,r[0],r[1])):s(r)}));u.postMessage(r),n.queuedSize=0,n.push=function(t,r){n.ondata||I(5),a&&n.ondata(I(4,0,1),null,!!r),n.queuedSize+=t.length,u.postMessage([t,a=r],[t.buffer])},n.terminate=function(){u.terminate()},o&&(n.flush=function(){u.postMessage([])})},ht=function(t,n){return t[n]|t[n+1]<<8},ft=function(t,n){return(t[n]|t[n+1]<<8|t[n+2]<<16|t[n+3]<<24)>>>0},lt=function(t,n){return ft(t,n)+4294967296*ft(t,n+4)},ct=function(t,n,r){for(;r;++n)t[n]=r,r>>>=8},pt=function(t,n){var r=n.filename;if(t[0]=31,t[1]=139,t[2]=8,t[8]=n.level<2?4:9==n.level?2:0,t[9]=3,0!=n.mtime&&ct(t,4,Math.floor(new Date(n.mtime||Date.now())/1e3)),r){t[3]=8;for(var e=0;e<=r.length;++e)t[e+10]=r.charCodeAt(e)}},vt=function(t){31==t[0]&&139==t[1]&&8==t[2]||I(6,"invalid gzip data");var n=t[3],r=10;4&n&&(r+=2+(t[10]|t[11]<<8));for(var e=(n>>3&1)+(n>>4&1);e>0;e-=!t[r++]);return r+(2&n)},dt=function(t){var n=t.length;return(t[n-4]|t[n-3]<<8|t[n-2]<<16|t[n-1]<<24)>>>0},gt=function(t){return 10+(t.filename?t.filename.length+1:0)},yt=function(t,n){var r=n.level,e=0==r?0:r<6?1:9==r?3:2;if(t[0]=120,t[1]=e<<6|(n.dictionary&&32),t[1]|=31-(t[0]<<8|t[1])%31,n.dictionary){var i=J();i.p(n.dictionary),ct(t,2,i.d())}},mt=function(t,n){return(8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31)&&I(6,"invalid zlib data"),(t[1]>>5&1)==+!n&&I(6,"invalid zlib data: "+(32&t[1]?"need":"unexpected")+" dictionary"),2+(t[1]>>3&4)};function bt(t,n){return"function"==typeof t&&(n=t,t={}),this.ondata=n,t}var wt=function(){function t(t,r){if("function"==typeof t&&(r=t,t={}),this.ondata=r,this.o=t||{},this.s={l:0,i:32768,w:32768,z:32768},this.b=new n(98304),this.o.dictionary){var e=this.o.dictionary.subarray(-32768);this.b.set(e,32768-e.length),this.s.i=32768-e.length}}return t.prototype.p=function(t,n){this.ondata(K(t,this.o,0,0,this.s),n)},t.prototype.push=function(t,r){this.ondata||I(5),this.s.l&&I(4);var e=t.length+this.s.z;if(e>this.b.length){if(e>2*this.b.length-32768){var i=new n(-32768&e);i.set(this.b.subarray(0,this.s.z)),this.b=i}var o=this.b.length-this.s.z;this.b.set(t.subarray(0,o),this.s.z),this.s.z=this.b.length,this.p(this.b,!1),this.b.set(this.b.subarray(-32768)),this.b.set(t.subarray(o),32768),this.s.z=t.length-o+32768,this.s.i=32766,this.s.w=32768}else this.b.set(t,this.s.z),this.s.z+=t.length;this.s.l=1&r,(this.s.z>this.s.w+8191||r)&&(this.p(this.b,r||!1),this.s.w=this.s.i,this.s.i-=2)},t.prototype.flush=function(){this.ondata||I(5),this.s.l&&I(4),this.p(this.b,!1),this.s.w=this.s.i,this.s.i-=2},t}();_e.Deflate=wt;var xt=function(){return function(t,n){ut([_,function(){return[at,wt]}],this,bt.call(this,t,n),(function(t){var n=new wt(t.data);onmessage=at(n)}),6,1)}}();function zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_],(function(t){return it(kt(t.data[0],t.data[1]))}),0,r)}function kt(t,n){return K(t,n||{},0,0)}_e.AsyncDeflate=xt,_e.deflate=zt,_e.deflateSync=kt;var Mt=function(){function t(t,r){"function"==typeof t&&(r=t,t={}),this.ondata=r;var e=t&&t.dictionary&&t.dictionary.subarray(-32768);this.s={i:0,b:e?e.length:0},this.o=new n(32768),this.p=new n(0),e&&this.o.set(e)}return t.prototype.e=function(t){if(this.ondata||I(5),this.d&&I(4),this.p.length){if(t.length){var r=new n(this.p.length+t.length);r.set(this.p),r.set(t,this.p.length),this.p=r}}else this.p=t},t.prototype.c=function(t){this.s.i=+(this.d=t||!1);var n=this.s.b,r=U(this.p,this.s,this.o);this.ondata(D(r,n,this.s.b),this.d),this.o=D(r,this.s.b-32768),this.s.b=this.o.length,this.p=D(this.p,this.s.p/8|0),this.s.p&=7},t.prototype.push=function(t,n){this.e(t),this.c(n)},t}();_e.Inflate=Mt;var St=function(){return function(t,n){ut([$,function(){return[at,Mt]}],this,bt.call(this,t,n),(function(t){var n=new Mt(t.data);onmessage=at(n)}),7,0)}}();function At(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$],(function(t){return it(Tt(t.data[0],ot(t.data[1])))}),1,r)}function Tt(t,n){return U(t,{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncInflate=St,_e.inflate=At,_e.inflateSync=Tt;var Dt=function(){function t(t,n){this.c=Y(),this.l=0,this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),this.l+=t.length,wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=K(t,this.o,this.v&&gt(this.o),n&&8,this.s);this.v&&(pt(r,this.o),this.v=0),n&&(ct(r,r.length-8,this.c.d()),ct(r,r.length-4,this.l)),this.ondata(r,n)},t.prototype.flush=function(){wt.prototype.flush.call(this)},t}();_e.Gzip=Dt,_e.Compress=Dt;var Ct=function(){return function(t,n){ut([_,tt,function(){return[at,wt,Dt]}],this,bt.call(this,t,n),(function(t){var n=new Dt(t.data);onmessage=at(n)}),8,1)}}();function It(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,tt,function(){return[Ut]}],(function(t){return it(Ut(t.data[0],t.data[1]))}),2,r)}function Ut(t,n){n||(n={});var r=Y(),e=t.length;r.p(t);var i=K(t,n,gt(n),8),o=i.length;return pt(i,n),ct(i,o-8,r.d()),ct(i,o-4,e),i}_e.AsyncGzip=Ct,_e.AsyncCompress=Ct,_e.gzip=It,_e.compress=It,_e.gzipSync=Ut,_e.compressSync=Ut;var Ft=function(){function t(t,n){this.v=1,this.r=0,Mt.call(this,t,n)}return t.prototype.push=function(t,r){if(Mt.prototype.e.call(this,t),this.r+=t.length,this.v){var e=this.p.subarray(this.v-1),i=e.length>3?vt(e):4;if(i>e.length){if(!r)return}else this.v>1&&this.onmember&&this.onmember(this.r-e.length);this.p=e.subarray(i),this.v=0}Mt.prototype.c.call(this,r),!this.s.f||this.s.l||r||(this.v=T(this.s.p)+9,this.s={i:0},this.o=new n(0),this.push(new n(0),r))},t}();_e.Gunzip=Ft;var Et=function(){return function(t,n){var r=this;ut([$,nt,function(){return[at,Mt,Ft]}],this,bt.call(this,t,n),(function(t){var n=new Ft(t.data);n.onmember=function(t){return postMessage(t)},onmessage=at(n)}),9,0,(function(t){return r.onmember&&r.onmember(t)}))}}();function Zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,nt,function(){return[qt]}],(function(t){return it(qt(t.data[0],t.data[1]))}),3,r)}function qt(t,r){var e=vt(t);return e+8>t.length&&I(6,"invalid gzip data"),U(t.subarray(e,-8),{i:2},r&&r.out||new n(dt(t)),r&&r.dictionary)}_e.AsyncGunzip=Et,_e.gunzip=Zt,_e.gunzipSync=qt;var Ot=function(){function t(t,n){this.c=J(),this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=K(t,this.o,this.v&&(this.o.dictionary?6:2),n&&4,this.s);this.v&&(yt(r,this.o),this.v=0),n&&ct(r,r.length-4,this.c.d()),this.ondata(r,n)},t.prototype.flush=function(){wt.prototype.flush.call(this)},t}();_e.Zlib=Ot;var Gt=function(){return function(t,n){ut([_,rt,function(){return[at,wt,Ot]}],this,bt.call(this,t,n),(function(t){var n=new Ot(t.data);onmessage=at(n)}),10,1)}}();function Lt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,rt,function(){return[Ht]}],(function(t){return it(Ht(t.data[0],t.data[1]))}),4,r)}function Ht(t,n){n||(n={});var r=J();r.p(t);var e=K(t,n,n.dictionary?6:2,4);return yt(e,n),ct(e,e.length-4,r.d()),e}_e.AsyncZlib=Gt,_e.zlib=Lt,_e.zlibSync=Ht;var jt=function(){function t(t,n){Mt.call(this,t,n),this.v=t&&t.dictionary?2:1}return t.prototype.push=function(t,n){if(Mt.prototype.e.call(this,t),this.v){if(this.p.length<6&&!n)return;this.p=this.p.subarray(mt(this.p,this.v-1)),this.v=0}n&&(this.p.length<4&&I(6,"invalid zlib data"),this.p=this.p.subarray(0,-4)),Mt.prototype.c.call(this,n)},t}();_e.Unzlib=jt;var Nt=function(){return function(t,n){ut([$,et,function(){return[at,Mt,jt]}],this,bt.call(this,t,n),(function(t){var n=new jt(t.data);onmessage=at(n)}),11,0)}}();function Pt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,et,function(){return[Bt]}],(function(t){return it(Bt(t.data[0],ot(t.data[1])))}),5,r)}function Bt(t,n){return U(t.subarray(mt(t,n&&n.dictionary),-4),{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncUnzlib=Nt,_e.unzlib=Pt,_e.unzlibSync=Bt;var Yt=function(){function t(t,n){this.o=bt.call(this,t,n)||{},this.G=Ft,this.I=Mt,this.Z=jt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r){t.ondata(n,r)}},t.prototype.push=function(t,r){if(this.ondata||I(5),this.s)this.s.push(t,r);else{if(this.p&&this.p.length){var e=new n(this.p.length+t.length);e.set(this.p),e.set(t,this.p.length)}else this.p=t;this.p.length>2&&(this.s=31==this.p[0]&&139==this.p[1]&&8==this.p[2]?new this.G(this.o):8!=(15&this.p[0])||this.p[0]>>4>7||(this.p[0]<<8|this.p[1])%31?new this.I(this.o):new this.Z(this.o),this.i(),this.s.push(this.p,r),this.p=null)}},t}();_e.Decompress=Yt;var Jt=function(){function t(t,n){Yt.call(this,t,n),this.queuedSize=0,this.G=Et,this.I=St,this.Z=Nt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r,e){t.ondata(n,r,e)},this.s.ondrain=function(n){t.queuedSize-=n,t.ondrain&&t.ondrain(n)}},t.prototype.push=function(t,n){this.queuedSize+=t.length,Yt.prototype.push.call(this,t,n)},t}();function Kt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),31==t[0]&&139==t[1]&&8==t[2]?Zt(t,n,r):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?At(t,n,r):Pt(t,n,r)}function Qt(t,n){return 31==t[0]&&139==t[1]&&8==t[2]?qt(t,n):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?Tt(t,n):Bt(t,n)}_e.AsyncDecompress=Jt,_e.decompress=Kt,_e.decompressSync=Qt;var Rt=function(t,r,e,i){for(var o in t){var s=t[o],a=r+o,u=i;Array.isArray(s)&&(u=Q(i,s[1]),s=s[0]),s instanceof n?e[a]=[s,u]:(e[a+="/"]=[new n(0),u],Rt(s,a,e,i))}},Vt="undefined"!=typeof TextEncoder&&new TextEncoder,Wt="undefined"!=typeof TextDecoder&&new TextDecoder,Xt=0;try{Wt.decode(N,{stream:!0}),Xt=1}catch(t){}var $t=function(t){for(var n="",r=0;;){var e=t[r++],i=(e>127)+(e>223)+(e>239);if(r+i>t.length)return{s:n,r:D(t,r-1)};i?3==i?(e=((15&e)<<18|(63&t[r++])<<12|(63&t[r++])<<6|63&t[r++])-65536,n+=String.fromCharCode(55296|e>>10,56320|1023&e)):n+=String.fromCharCode(1&i?(31&e)<<6|63&t[r++]:(15&e)<<12|(63&t[r++])<<6|63&t[r++]):n+=String.fromCharCode(e)}},_t=function(){function t(t){this.ondata=t,Xt?this.t=new TextDecoder:this.p=N}return t.prototype.push=function(t,r){if(this.ondata||I(5),r=!!r,this.t)return this.ondata(this.t.decode(t,{stream:!0}),r),void(r&&(this.t.decode().length&&I(8),this.t=null));this.p||I(4);var e=new n(this.p.length+t.length);e.set(this.p),e.set(t,this.p.length);var i=$t(e),o=i.s,s=i.r;r?(s.length&&I(8),this.p=null):this.p=s,this.ondata(o,r)},t}();_e.DecodeUTF8=_t;var tn=function(){function t(t){this.ondata=t}return t.prototype.push=function(t,n){this.ondata||I(5),this.d&&I(4),this.ondata(nn(t),this.d=n||!1)},t}();function nn(t,r){if(r){for(var e=new n(t.length),i=0;i<t.length;++i)e[i]=t.charCodeAt(i);return e}if(Vt)return Vt.encode(t);var o=t.length,s=new n(t.length+(t.length>>1)),a=0,u=function(t){s[a++]=t};for(i=0;i<o;++i){if(a+5>s.length){var h=new n(a+8+(o-i<<1));h.set(s),s=h}var f=t.charCodeAt(i);f<128||r?u(f):f<2048?(u(192|f>>6),u(128|63&f)):f>55295&&f<57344?(u(240|(f=65536+(1047552&f)|1023&t.charCodeAt(++i))>>18),u(128|f>>12&63),u(128|f>>6&63),u(128|63&f)):(u(224|f>>12),u(128|f>>6&63),u(128|63&f))}return D(s,0,a)}function rn(t,n){if(n){for(var r="",e=0;e<t.length;e+=16384)r+=String.fromCharCode.apply(null,t.subarray(e,e+16384));return r}if(Wt)return Wt.decode(t);var i=$t(t),o=i.s;return(r=i.r).length&&I(8),o}_e.EncodeUTF8=tn,_e.strToU8=nn,_e.strFromU8=rn;var en=function(t){return 1==t?3:t<6?2:9==t?1:0},on=function(t,n){return n+30+ht(t,n+26)+ht(t,n+28)},sn=function(t,n,r){var e=ht(t,n+28),i=rn(t.subarray(n+46,n+46+e),!(2048&ht(t,n+8))),o=n+46+e,s=ft(t,n+20),a=r&&4294967295==s?an(t,o):[s,ft(t,n+24),ft(t,n+42)],u=a[0],h=a[1],f=a[2];return[ht(t,n+10),u,h,i,o+ht(t,n+30)+ht(t,n+32),f]},an=function(t,n){for(;1!=ht(t,n);n+=4+ht(t,n+2));return[lt(t,n+12),lt(t,n+4),lt(t,n+20)]},un=function(t){var n=0;if(t)for(var r in t){var e=t[r].length;e>65535&&I(9),n+=e+4}return n},hn=function(t,n,r,e,i,o,s,a){var u=e.length,h=r.extra,f=a&&a.length,l=un(h);ct(t,n,null!=s?33639248:67324752),n+=4,null!=s&&(t[n++]=20,t[n++]=r.os),t[n]=20,n+=2,t[n++]=r.flag<<1|(o<0&&8),t[n++]=i&&8,t[n++]=255&r.compression,t[n++]=r.compression>>8;var c=new Date(null==r.mtime?Date.now():r.mtime),p=c.getFullYear()-1980;if((p<0||p>119)&&I(10),ct(t,n,p<<25|c.getMonth()+1<<21|c.getDate()<<16|c.getHours()<<11|c.getMinutes()<<5|c.getSeconds()>>1),n+=4,-1!=o&&(ct(t,n,r.crc),ct(t,n+4,o<0?-o-2:o),ct(t,n+8,r.size)),ct(t,n+12,u),ct(t,n+14,l),n+=16,null!=s&&(ct(t,n,f),ct(t,n+6,r.attrs),ct(t,n+10,s),n+=14),t.set(e,n),n+=u,l)for(var v in h){var d=h[v],g=d.length;ct(t,n,+v),ct(t,n+2,g),t.set(d,n+4),n+=4+g}return f&&(t.set(a,n),n+=f),n},fn=function(t,n,r,e,i){ct(t,n,101010256),ct(t,n+8,r),ct(t,n+10,r),ct(t,n+12,e),ct(t,n+16,i)},ln=function(){function t(t){this.filename=t,this.c=Y(),this.size=0,this.compression=0}return t.prototype.process=function(t,n){this.ondata(null,t,n)},t.prototype.push=function(t,n){this.ondata||I(5),this.c.p(t),this.size+=t.length,n&&(this.crc=this.c.d()),this.process(t,n||!1)},t}();_e.ZipPassThrough=ln;var cn=function(){function t(t,n){var r=this;n||(n={}),ln.call(this,t),this.d=new wt(n,(function(t,n){r.ondata(null,t,n)})),this.compression=8,this.flag=en(n.level)}return t.prototype.process=function(t,n){try{this.d.push(t,n)}catch(t){this.ondata(t,null,n)}},t.prototype.push=function(t,n){ln.prototype.push.call(this,t,n)},t}();_e.ZipDeflate=cn;var pn=function(){function t(t,n){var r=this;n||(n={}),ln.call(this,t),this.d=new xt(n,(function(t,n,e){r.ondata(t,n,e)})),this.compression=8,this.flag=en(n.level),this.terminate=this.d.terminate}return t.prototype.process=function(t,n){this.d.push(t,n)},t.prototype.push=function(t,n){ln.prototype.push.call(this,t,n)},t}();_e.AsyncZipDeflate=pn;var vn=function(){function t(t){this.ondata=t,this.u=[],this.d=1}return t.prototype.add=function(t){var r=this;if(this.ondata||I(5),2&this.d)this.ondata(I(4+8*(1&this.d),0,1),null,!1);else{var e=nn(t.filename),i=e.length,o=t.comment,s=o&&nn(o),a=i!=t.filename.length||s&&o.length!=s.length,u=i+un(t.extra)+30;i>65535&&this.ondata(I(11,0,1),null,!1);var h=new n(u);hn(h,0,t,e,a,-1);var f=[h],l=function(){for(var t=0,n=f;t<n.length;t++)r.ondata(null,n[t],!1);f=[]},c=this.d;this.d=0;var p=this.u.length,v=Q(t,{f:e,u:a,o:s,t:function(){t.terminate&&t.terminate()},r:function(){if(l(),c){var t=r.u[p+1];t?t.r():r.d=1}c=1}}),d=0;t.ondata=function(e,i,o){if(e)r.ondata(e,i,o),r.terminate();else if(d+=i.length,f.push(i),o){var s=new n(16);ct(s,0,134695760),ct(s,4,t.crc),ct(s,8,d),ct(s,12,t.size),f.push(s),v.c=d,v.b=u+d+16,v.crc=t.crc,v.size=t.size,c&&v.r(),c=1}else c&&l()},this.u.push(v)}},t.prototype.end=function(){var t=this;2&this.d?this.ondata(I(4+8*(1&this.d),0,1),null,!0):(this.d?this.e():this.u.push({r:function(){1&t.d&&(t.u.splice(-1,1),t.e())},t:function(){}}),this.d=3)},t.prototype.e=function(){for(var t=0,r=0,e=0,i=0,o=this.u;i<o.length;i++)e+=46+(h=o[i]).f.length+un(h.extra)+(h.o?h.o.length:0);for(var s=new n(e+22),a=0,u=this.u;a<u.length;a++){var h;hn(s,t,h=u[a],h.f,h.u,-h.c-2,r,h.o),t+=46+h.f.length+un(h.extra)+(h.o?h.o.length:0),r+=h.b}fn(s,t,this.u.length,e,r),this.ondata(null,s,!0),this.d=2},t.prototype.terminate=function(){for(var t=0,n=this.u;t<n.length;t++)n[t].t();this.d=2},t}();function dn(t,r,e){e||(e=r,r={}),"function"!=typeof e&&I(7);var i={};Rt(t,"",i,r);var o=Object.keys(i),s=o.length,a=0,u=0,h=s,f=Array(s),l=[],c=function(){for(var t=0;t<l.length;++t)l[t]()},p=function(t,n){xn((function(){e(t,n)}))};xn((function(){p=e}));var v=function(){var t=new n(u+22),r=a,e=u-a;u=0;for(var i=0;i<h;++i){var o=f[i];try{var s=o.c.length;hn(t,u,o,o.f,o.u,s);var l=30+o.f.length+un(o.extra),c=u+l;t.set(o.c,c),hn(t,a,o,o.f,o.u,s,u,o.m),a+=16+l+(o.m?o.m.length:0),u=c+s}catch(t){return p(t,null)}}fn(t,a,f.length,e,r),p(null,t)};s||v();for(var d=function(t){var n=o[t],r=i[n],e=r[0],h=r[1],d=Y(),g=e.length;d.p(e);var y=nn(n),m=y.length,b=h.comment,w=b&&nn(b),x=w&&w.length,z=un(h.extra),k=0==h.level?0:8,M=function(r,e){if(r)c(),p(r,null);else{var i=e.length;f[t]=Q(h,{size:g,crc:d.d(),c:e,f:y,m:w,u:m!=n.length||w&&b.length!=x,compression:k}),a+=30+m+z+i,u+=76+2*(m+z)+(x||0)+i,--s||v()}};if(m>65535&&M(I(11,0,1),null),k)if(g<16e4)try{M(null,kt(e,h))}catch(t){M(t,null)}else l.push(zt(e,h,M));else M(null,e)},g=0;g<h;++g)d(g);return c}function gn(t,r){r||(r={});var e={},i=[];Rt(t,"",e,r);var o=0,s=0;for(var a in e){var u=e[a],h=u[0],f=u[1],l=0==f.level?0:8,c=(M=nn(a)).length,p=f.comment,v=p&&nn(p),d=v&&v.length,g=un(f.extra);c>65535&&I(11);var y=l?kt(h,f):h,m=y.length,b=Y();b.p(h),i.push(Q(f,{size:h.length,crc:b.d(),c:y,f:M,m:v,u:c!=a.length||v&&p.length!=d,o:o,compression:l})),o+=30+c+g+m,s+=76+2*(c+g)+(d||0)+m}for(var w=new n(s+22),x=o,z=s-o,k=0;k<i.length;++k){var M;hn(w,(M=i[k]).o,M,M.f,M.u,M.c.length);var S=30+M.f.length+un(M.extra);w.set(M.c,M.o+S),hn(w,o,M,M.f,M.u,M.c.length,M.o,M.m),o+=16+S+(M.m?M.m.length:0)}return fn(w,o,i.length,z,x),w}_e.Zip=vn,_e.zip=dn,_e.zipSync=gn;var yn=function(){function t(){}return t.prototype.push=function(t,n){this.ondata(null,t,n)},t.compression=0,t}();_e.UnzipPassThrough=yn;var mn=function(){function t(){var t=this;this.i=new Mt((function(n,r){t.ondata(null,n,r)}))}return t.prototype.push=function(t,n){try{this.i.push(t,n)}catch(t){this.ondata(t,null,n)}},t.compression=8,t}();_e.UnzipInflate=mn;var bn=function(){function t(t,n){var r=this;n<32e4?this.i=new Mt((function(t,n){r.ondata(null,t,n)})):(this.i=new St((function(t,n,e){r.ondata(t,n,e)})),this.terminate=this.i.terminate)}return t.prototype.push=function(t,n){this.i.terminate&&(t=D(t,0)),this.i.push(t,n)},t.compression=8,t}();_e.AsyncUnzipInflate=bn;var wn=function(){function t(t){this.onfile=t,this.k=[],this.o={0:yn},this.p=N}return t.prototype.push=function(t,r){var e=this;if(this.onfile||I(5),this.p||I(4),this.c>0){var i=Math.min(this.c,t.length),o=t.subarray(0,i);if(this.c-=i,this.d?this.d.push(o,!this.c):this.k[0].push(o),(t=t.subarray(i)).length)return this.push(t,r)}else{var s=0,a=0,u=void 0,h=void 0;this.p.length?t.length?((h=new n(this.p.length+t.length)).set(this.p),h.set(t,this.p.length)):h=this.p:h=t;for(var f=h.length,l=this.c,c=l&&this.d,p=function(){var t,n=ft(h,a);if(67324752==n){s=1,u=a,v.d=null,v.c=0;var r=ht(h,a+6),i=ht(h,a+8),o=2048&r,c=8&r,p=ht(h,a+26),d=ht(h,a+28);if(f>a+30+p+d){var g=[];v.k.unshift(g),s=2;var y,m=ft(h,a+18),b=ft(h,a+22),w=rn(h.subarray(a+30,a+=30+p),!o);4294967295==m?(t=c?[-2]:an(h,a),m=t[0],b=t[1]):c&&(m=-1),a+=d,v.c=m;var x={name:w,compression:i,start:function(){if(x.ondata||I(5),m){var t=e.o[i];t||x.ondata(I(14,"unknown compression type "+i,1),null,!1),(y=m<0?new t(w):new t(w,m,b)).ondata=function(t,n,r){x.ondata(t,n,r)};for(var n=0,r=g;n<r.length;n++)y.push(r[n],!1);e.k[0]==g&&e.c?e.d=y:y.push(N,!0)}else x.ondata(null,N,!0)},terminate:function(){y&&y.terminate&&y.terminate()}};m>=0&&(x.size=m,x.originalSize=b),v.onfile(x)}return"break"}if(l){if(134695760==n)return u=a+=12+(-2==l&&8),s=3,v.c=0,"break";if(33639248==n)return u=a-=4,s=3,v.c=0,"break"}},v=this;a<f-4&&"break"!==p();++a);if(this.p=N,l<0){var d=h.subarray(0,s?u-12-(-2==l&&8)-(134695760==ft(h,u-16)&&4):a);c?c.push(d,!!s):this.k[+(2==s)].push(d)}if(2&s)return this.push(h.subarray(a),r);this.p=h.subarray(a)}r&&(this.c&&I(13),this.p=null)},t.prototype.register=function(t){this.o[t.compression]=t},t}();_e.Unzip=wn;var xn="function"==typeof queueMicrotask?queueMicrotask:"function"==typeof setTimeout?setTimeout:function(t){t()};function zn(t,r,e){e||(e=r,r={}),"function"!=typeof e&&I(7);var i=[],o=function(){for(var t=0;t<i.length;++t)i[t]()},s={},a=function(t,n){xn((function(){e(t,n)}))};xn((function(){a=e}));for(var u=t.length-22;101010256!=ft(t,u);--u)if(!u||t.length-u>65558)return a(I(13,0,1),null),o;var h=ht(t,u+8);if(h){var f=h,l=ft(t,u+16),c=4294967295==l||65535==f;if(c){var p=ft(t,u-12);(c=101075792==ft(t,p))&&(f=h=ft(t,p+32),l=ft(t,p+48))}for(var v=r&&r.filter,d=function(r){var e=sn(t,l,c),u=e[0],f=e[1],p=e[2],d=e[3],g=e[4],y=on(t,e[5]);l=g;var m=function(t,n){t?(o(),a(t,null)):(n&&(s[d]=n),--h||a(null,s))};if(!v||v({name:d,size:f,originalSize:p,compression:u}))if(u)if(8==u){var b=t.subarray(y,y+f);if(p<524288||f>.8*p)try{m(null,Tt(b,{out:new n(p)}))}catch(t){m(t,null)}else i.push(At(b,{size:p},m))}else m(I(14,"unknown compression type "+u,1),null);else m(null,D(t,y,y+f));else m(null,null)},g=0;g<f;++g)d()}else a(null,{});return o}function kn(t,r){for(var e={},i=t.length-22;101010256!=ft(t,i);--i)(!i||t.length-i>65558)&&I(13);var o=ht(t,i+8);if(!o)return{};var s=ft(t,i+16),a=4294967295==s||65535==o;if(a){var u=ft(t,i-12);(a=101075792==ft(t,u))&&(o=ft(t,u+32),s=ft(t,u+48))}for(var h=r&&r.filter,f=0;f<o;++f){var l=sn(t,s,a),c=l[0],p=l[1],v=l[2],d=l[3],g=l[4],y=on(t,l[5]);s=g,h&&!h({name:d,size:p,originalSize:v,compression:c})||(c?8==c?e[d]=Tt(t.subarray(y,y+p),{out:new n(v)}):I(14,"unknown compression type "+c):e[d]=D(t,y,y+p))}return e}_e.unzip=zn,_e.unzipSync=kn;return _e});</script>
+<script>// Minified version of https://github.com/nayuki/QR-Code-generator/releases/download/v1.8.0/qrcodegen-v1.8.0-es6.js using https://closure-compiler.appspot.com/
 'use strict';var qrcodegen;
 (function(q){function m(b,a,c){if(0>a||31<a||0!=b>>>a)throw new RangeError("Value out of range");for(--a;0<=a;a--)c.push(b>>>a&1)}function h(b){if(!b)throw Error("Assertion error");}class e{constructor(b,a,c,d){this.version=b;this.errorCorrectionLevel=a;this.modules=[];this.isFunction=[];if(b<e.MIN_VERSION||b>e.MAX_VERSION)throw new RangeError("Version value out of range");if(-1>d||7<d)throw new RangeError("Mask value out of range");this.size=4*b+17;b=[];for(a=0;a<this.size;a++)b.push(!1);for(a=0;a<
 this.size;a++)this.modules.push(b.slice()),this.isFunction.push(b.slice());this.drawFunctionPatterns();c=this.addEccAndInterleave(c);this.drawCodewords(c);if(-1==d)for(c=1E9,b=0;8>b;b++)this.applyMask(b),this.drawFormatBits(b),a=this.getPenaltyScore(),a<c&&(d=b,c=a),this.applyMask(b);h(0<=d&&7>=d);this.mask=d;this.applyMask(d);this.drawFormatBits(d);this.isFunction=[]}static encodeText(b,a){b=q.QrSegment.makeSegments(b);return e.encodeSegments(b,a)}static encodeBinary(b,a){b=q.QrSegment.makeBytes(b);
@@ -668,49 +298,416 @@ e.MIN_VERSION=1;e.MAX_VERSION=40;e.PENALTY_N1=3;e.PENALTY_N2=3;e.PENALTY_N3=40;e
 b?[]:k.isNumeric(b)?[k.makeNumeric(b)]:k.isAlphanumeric(b)?[k.makeAlphanumeric(b)]:[k.makeBytes(k.toUtf8ByteArray(b))]}static makeEci(b){let a=[];if(0>b)throw new RangeError("ECI assignment value out of range");if(128>b)m(b,8,a);else if(16384>b)m(2,2,a),m(b,14,a);else if(1E6>b)m(6,3,a),m(b,21,a);else throw new RangeError("ECI assignment value out of range");return new k(k.Mode.ECI,0,a)}static isNumeric(b){return k.NUMERIC_REGEX.test(b)}static isAlphanumeric(b){return k.ALPHANUMERIC_REGEX.test(b)}getData(){return this.bitData.slice()}static getTotalBits(b,
 a){let c=0;for(const d of b){b=d.mode.numCharCountBits(a);if(d.numChars>=1<<b)return Infinity;c+=4+b+d.bitData.length}return c}static toUtf8ByteArray(b){b=encodeURI(b);let a=[];for(let c=0;c<b.length;c++)"%"!=b.charAt(c)?a.push(b.charCodeAt(c)):(a.push(parseInt(b.substr(c+1,2),16)),c+=2);return a}}k.NUMERIC_REGEX=/^[0-9]*$/;k.ALPHANUMERIC_REGEX=/^[A-Z0-9 $%*+.\/:-]*$/;k.ALPHANUMERIC_CHARSET="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";q.QrSegment=k})(qrcodegen||={});
 (function(q){(function(m){class h{constructor(e,k){this.ordinal=e;this.formatBits=k}}h.LOW=new h(0,1);h.MEDIUM=new h(1,0);h.QUARTILE=new h(2,3);h.HIGH=new h(3,2);m.Ecc=h})(q.QrCode||(q.QrCode={}))})(qrcodegen||={});
-(function(q){(function(m){class h{constructor(e,k){this.modeBits=e;this.numBitsCharCount=k}numCharCountBits(e){return this.numBitsCharCount[Math.floor((e+7)/17)]}}h.NUMERIC=new h(1,[10,12,14]);h.ALPHANUMERIC=new h(2,[9,11,13]);h.BYTE=new h(4,[8,16,16]);h.KANJI=new h(8,[8,10,12]);h.ECI=new h(7,[0,0,0]);m.Mode=h})(q.QrSegment||(q.QrSegment={}))})(qrcodegen||={});
+(function(q){(function(m){class h{constructor(e,k){this.modeBits=e;this.numBitsCharCount=k}numCharCountBits(e){return this.numBitsCharCount[Math.floor((e+7)/17)]}}h.NUMERIC=new h(1,[10,12,14]);h.ALPHANUMERIC=new h(2,[9,11,13]);h.BYTE=new h(4,[8,16,16]);h.KANJI=new h(8,[8,10,12]);h.ECI=new h(7,[0,0,0]);m.Mode=h})(q.QrSegment||(q.QrSegment={}))})(qrcodegen||={});</script>
+<script>
+"use strict";
+(function(){
+/* ---------------- base44: 2 bytes -> 3 chars, all inside the QR alphanumeric set ---------------- */
+var A44 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$%*+-./:";
+var D44 = {}; for (var i=0;i<A44.length;i++) D44[A44.charAt(i)] = i;
 
-    // The following snippets are taken from the demo of the QR code generator library (https://www.nayuki.io/res/qr-code-generator-library/qrcodegen-input-demo.js)
+function b44encode(b){
+  var out = [], i = 0, n;
+  for (; i+1 < b.length; i += 2){
+    n = b[i]*256 + b[i+1];
+    out.push(A44.charAt(n%44), A44.charAt(Math.floor(n/44)%44), A44.charAt(Math.floor(n/1936)));
+  }
+  if (i < b.length){ n = b[i]; out.push(A44.charAt(n%44), A44.charAt(Math.floor(n/44))); }
+  return out.join("");
+}
+function b44decode(s){
+  var full = Math.floor(s.length/3), rem = s.length%3;
+  if (rem === 1) throw new Error("truncated code data");
+  var out = new Uint8Array(full*2 + (rem?1:0)), o = 0, i, a, b, c, n;
+  for (i = 0; i < full*3; i += 3){
+    a = D44[s.charAt(i)]; b = D44[s.charAt(i+1)]; c = D44[s.charAt(i+2)];
+    if (a===undefined||b===undefined||c===undefined) throw new Error("unrecognised character in code data");
+    n = a + b*44 + c*1936;
+    if (n > 65535) throw new Error("corrupt code data");
+    out[o++] = n >> 8; out[o++] = n & 255;
+  }
+  if (rem === 2){
+    a = D44[s.charAt(s.length-2)]; b = D44[s.charAt(s.length-1)];
+    if (a===undefined||b===undefined) throw new Error("unrecognised character in code data");
+    n = a + b*44;
+    if (n > 255) throw new Error("corrupt code data");
+    out[o++] = n;
+  }
+  return out;
+}
 
-    // Returns a string of SVG code for an image depicting the given QR Code, with the given number
-	// of border modules. The string always uses Unix newlines (\n), regardless of the platform.
-	function toSvgString(qr, border, lightColor, darkColor) {
-		if (border < 0)
-			throw new RangeError("Border must be non-negative");
-		let parts = [];
-		for (let y = 0; y < qr.size; y++) {
-			for (let x = 0; x < qr.size; x++) {
-				if (qr.getModule(x, y))
-					parts.push(`M${x + border},${y + border}h1v1h-1z`);
-			}
-		}
-		return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 ${qr.size + border * 2} ${qr.size + border * 2}" stroke="none">
-	<rect width="100%" height="100%" fill="${lightColor}"/>
-	<path d="${parts.join(" ")}" fill="${darkColor}"/>
-</svg>
-`;
-	}
+/* ---------------- CRC32 ---------------- */
+var CRCT = (function(){ var t = new Int32Array(256), c, n, k;
+  for (n=0;n<256;n++){ c=n; for(k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c; } return t; })();
+function crc32(b){ var c = -1; for (var i=0;i<b.length;i++) c = CRCT[(c ^ b[i]) & 255] ^ (c>>>8); return (c ^ -1) >>> 0; }
 
-    // Draws the given QR Code, with the given module scale and border modules, onto the given HTML
-    // canvas element. The canvas's width and height is resized to (qr.size + border * 2) * scale.
-    // The drawn image is purely dark and light, and fully opaque.
-    // The scale must be a positive integer and the border must be a non-negative integer.
-    function drawCanvas(qr, scale, border, lightColor, darkColor, canvas) {
-        if (scale <= 0 || border < 0)
-            throw new RangeError("Value out of range");
-        const width = (qr.size + border * 2) * scale;
-        canvas.width = width;
-        canvas.height = width;
-        let ctx = canvas.getContext("2d");
-        for (let y = -border; y < qr.size + border; y++) {
-            for (let x = -border; x < qr.size + border; x++) {
-                ctx.fillStyle = qr.getModule(x, y) ? darkColor : lightColor;
-                ctx.fillRect((x + border) * scale, (y + border) * scale, scale, scale);
-            }
-        }
+/* ---------------- container: version | flags | name | crc | size | body ---------------- */
+function pack(name, data){
+  var nb = fflate.strToU8(name), body, flags = 0;
+  try { var def = fflate.deflateSync(data, {level:9}); if (def.length < data.length){ body = def; flags = 1; } } catch(e){}
+  if (!body) body = data;
+  var head = new Uint8Array(12 + nb.length), dv = new DataView(head.buffer);
+  head[0] = 1; head[1] = flags;
+  dv.setUint16(2, nb.length, true);
+  head.set(nb, 4);
+  dv.setUint32(4 + nb.length, crc32(data), true);
+  dv.setUint32(8 + nb.length, data.length, true);
+  var out = new Uint8Array(head.length + body.length);
+  out.set(head); out.set(body, head.length);
+  return out;
+}
+function unpack(buf){
+  if (buf.length < 12 || buf[0] !== 1) throw new Error("this isn't a file made by this page");
+  var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  var nlen = dv.getUint16(2, true);
+  if (buf.length < 12 + nlen) throw new Error("the reassembled data is incomplete");
+  var name = fflate.strFromU8(buf.subarray(4, 4+nlen));
+  var crc = dv.getUint32(4+nlen, true), size = dv.getUint32(8+nlen, true);
+  var data = buf.subarray(12+nlen);
+  if (buf[1] & 1) data = fflate.inflateSync(data, {out:new Uint8Array(size)});
+  if (data.length !== size) throw new Error("size mismatch — a code was probably mis-scanned");
+  if (crc32(data) !== crc) throw new Error("checksum mismatch — a code was probably mis-scanned");
+  return {name:name, data:data};
+}
+
+/* ---------------- QR helpers ---------------- */
+var ECCMAP = {L:qrcodegen.QrCode.Ecc.LOW, M:qrcodegen.QrCode.Ecc.MEDIUM, Q:qrcodegen.QrCode.Ecc.QUARTILE, H:qrcodegen.QrCode.Ecc.HIGH};
+function encodeAt(text, ecc, maxVer){
+  return qrcodegen.QrCode.encodeSegments(qrcodegen.QrSegment.makeSegments(text), ecc, 1, maxVer, -1, false);
+}
+function svgFor(text, ecc, maxVer, border){
+  var qr = encodeAt(text, ecc, maxVer), parts = [], x, y;
+  for (y=0; y<qr.size; y++) for (x=0; x<qr.size; x++) if (qr.getModule(x,y)) parts.push("M"+(x+border)+","+(y+border)+"h1v1h-1z");
+  var d = qr.size + border*2;
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+d+' '+d+'" shape-rendering="crispEdges">'+
+         '<rect width="100%" height="100%" fill="#fff"/><path d="'+parts.join(" ")+'" fill="#000"/></svg>';
+}
+var capCache = {};
+function maxChars(maxVer, eccKey){
+  var key = maxVer+eccKey;
+  if (capCache[key]) return capCache[key];
+  var lo = 1, hi = 4296, mid;
+  while (lo < hi){
+    mid = Math.ceil((lo+hi)/2);
+    try { encodeAt(new Array(mid+1).join("A"), ECCMAP[eccKey], maxVer); lo = mid; }
+    catch(e){ hi = mid - 1; }
+  }
+  return (capCache[key] = lo);
+}
+
+/* ---------------- small DOM helpers ---------------- */
+function $(id){ return document.getElementById(id); }
+function bytes(n){
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n/1024).toFixed(1) + " KB";
+  return (n/1048576).toFixed(2) + " MB";
+}
+function setText(el, t){ el.textContent = t; }
+function pad2(n){ return n < 10 ? "0"+n : ""+n; }
+
+/* ================================================================= SEND ============ */
+var S = {name:null, data:null, container:null, codes:[], idx:0, sid:null, cache:{}};
+
+function settings(){
+  var p = $("preset").value.split(","), ver = parseInt(p[0], 10), ecc = $("ecc").value;
+  return {ver:ver, ecc:ecc};
+}
+function newSid(){
+  var s = "", pool = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
+  var r = new Uint8Array(4); (crypto && crypto.getRandomValues) ? crypto.getRandomValues(r) : (r[0]=Math.random()*255,r[1]=Math.random()*255,r[2]=Math.random()*255,r[3]=Math.random()*255);
+  for (var i=0;i<4;i++) s += pool.charAt(r[i] % pool.length);
+  return s;
+}
+function buildCodes(){
+  S.cache = {};
+  if (!S.container){ paintSend(); return; }
+  var st = settings();
+  var cap = maxChars(st.ver, st.ecc);
+  var text = b44encode(S.container);
+  // header worst case: "QZ1:XXXX:NNNN:NNNN:" — reserve generously, then round down to a multiple of 3
+  var head = 4 + 5 + 12; // "QZ1:" + "SID:" + up to ":99999:99999:"
+  var per = Math.floor((cap - head)/3)*3;
+  if (per < 3){ S.codes = []; fail("Those settings leave no room for data. Pick a larger code size."); return; }
+  var total = Math.max(1, Math.ceil(text.length/per));
+  S.codes = [];
+  for (var i=0;i<total;i++) S.codes.push("QZ1:"+S.sid+":"+(i+1)+":"+total+":"+text.substr(i*per, per));
+  S.perBytes = Math.floor(per/3)*2;
+  S.idx = 0;
+  paintSend();
+}
+function fail(msg){
+  var el = $("send-status"); el.className = "status bad"; setText(el, msg);
+}
+function paintSend(){
+  var n = S.codes.length;
+  setText($("c-now"), n ? pad2(S.idx+1) : "00");
+  setText($("c-of"), "/ " + (n ? pad2(n) : "00"));
+  setText($("c-stat"), n ? (S.name || "") : "no file loaded");
+  $("prev").disabled = !n || S.idx === 0;
+  $("next").disabled = !n || S.idx >= n-1;
+  $("next").textContent = (n && S.idx >= n-1) ? "Last code" : "Next code →";
+
+  var rail = $("rail"); rail.innerHTML = "";
+  if (n && n <= 400){
+    for (var i=0;i<n;i++){
+      var b = document.createElement("button");
+      b.className = "cell" + (i === S.idx ? " now" : (i < S.idx ? " seen" : ""));
+      b.type = "button"; b.title = "Code " + (i+1);
+      b.setAttribute("aria-label", "Show code " + (i+1) + " of " + n);
+      b.dataset.i = i;
+      rail.appendChild(b);
     }
+  }
+  var sheet = $("sheet");
+  if (!n){ sheet.className = "sheet empty"; setText(sheet, "Pick a file and the codes appear here, one at a time."); return; }
+  var st = settings();
+  var key = S.idx + "|" + st.ver + st.ecc;
+  if (!S.cache[key]) S.cache[key] = svgFor(S.codes[S.idx], ECCMAP[st.ecc], st.ver, 4);
+  sheet.className = "sheet";
+  sheet.innerHTML = S.cache[key];
+}
+function readout(){
+  if (!S.container){ $("readout").hidden = true; return; }
+  $("readout").hidden = false;
+  setText($("r-name"), S.name);
+  setText($("r-orig"), bytes(S.data.length));
+  setText($("r-comp"), bytes(S.container.length) + (S.container.length < S.data.length ? "  (" + Math.round(100 - S.container.length/S.data.length*100) + "% smaller)" : ""));
+  setText($("r-per"), (S.perBytes||0) + " B");
+  setText($("r-codes"), String(S.codes.length));
+  var el = $("send-status");
+  if (S.codes.length > 200){ el.className = "status bad"; setText(el, S.codes.length + " codes is more than anyone will scan by hand. Send a smaller file, or compress it first."); }
+  else if (S.codes.length > 40){ el.className = "status bad"; setText(el, S.codes.length + " codes is a long manual session. A denser preset will cut that down."); }
+  else { el.className = "status ok"; setText(el, "Ready. Scan code 1."); }
+}
+function loadFiles(list){
+  if (!list || !list.length) return;
+  var el = $("send-status"); el.className = "status"; setText(el, "Reading…");
+  var files = Array.prototype.slice.call(list);
+  Promise.all(files.map(function(f){ return f.arrayBuffer().then(function(b){ return {name:f.name, u8:new Uint8Array(b)}; }); }))
+    .then(function(items){
+      var name, data;
+      if (items.length === 1){ name = items[0].name; data = items[0].u8; }
+      else {
+        var bag = {};
+        items.forEach(function(it){ bag[it.name] = it.u8; });
+        data = fflate.zipSync(bag, {level:9});
+        name = "bundle-" + items.length + "-files.zip";
+      }
+      S.name = name; S.data = data; S.sid = newSid();
+      S.container = pack(name, data);
+      buildCodes(); readout();
+    })
+    .catch(function(e){ fail("Could not read that file: " + e.message); });
+}
+
+/* ---- send events ---- */
+$("drop").addEventListener("click", function(){ $("picker").click(); });
+$("drop").addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); $("picker").click(); } });
+$("picker").addEventListener("change", function(e){ loadFiles(e.target.files); });
+["dragenter","dragover"].forEach(function(ev){ $("drop").addEventListener(ev, function(e){ e.preventDefault(); $("drop").classList.add("hot"); }); });
+["dragleave","drop"].forEach(function(ev){ $("drop").addEventListener(ev, function(e){ e.preventDefault(); $("drop").classList.remove("hot"); }); });
+$("drop").addEventListener("drop", function(e){ if (e.dataTransfer && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files); });
+document.addEventListener("paste", function(e){
+  if (mode() !== "send") return;
+  if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length){ e.preventDefault(); loadFiles(e.clipboardData.files); }
+});
+$("prev").addEventListener("click", function(){ if (S.idx > 0){ S.idx--; paintSend(); } });
+$("next").addEventListener("click", function(){ if (S.idx < S.codes.length-1){ S.idx++; paintSend(); } });
+$("rail").addEventListener("click", function(e){
+  var t = e.target.closest ? e.target.closest(".cell") : null;
+  if (t){ S.idx = parseInt(t.dataset.i, 10); paintSend(); }
+});
+$("sheet").addEventListener("click", function(){ if (S.idx < S.codes.length-1){ S.idx++; paintSend(); } });
+$("preset").addEventListener("change", function(){
+  var p = $("preset").value.split(",");
+  $("ecc").value = p[1];
+  buildCodes(); readout();
+});
+$("ecc").addEventListener("change", function(){ buildCodes(); readout(); });
+document.addEventListener("keydown", function(e){
+  if (mode() !== "send") return;
+  var tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select" || tag === "button" || tag === "a") return;
+  if (e.key === "ArrowRight" || e.key === " "){ e.preventDefault(); $("next").click(); }
+  else if (e.key === "ArrowLeft"){ e.preventDefault(); $("prev").click(); }
+});
+
+/* ================================================================= RECEIVE ============ */
+var R = {sets:{}, active:null, blobUrl:null};
+var CODE_RE = /QZ1:([0-9A-Z]{4}):(\d{1,6}):(\d{1,6}):([0-9A-Z$%*+\-.\/:]+)/g;
+
+function ingest(raw){
+  var text = String(raw || "").toUpperCase(), m, added = 0, seen = 0, badTotal = false;
+  CODE_RE.lastIndex = 0;
+  while ((m = CODE_RE.exec(text)) !== null){
+    var sid = m[1], idx = parseInt(m[2],10), total = parseInt(m[3],10), payload = m[4];
+    if (!total || idx < 1 || idx > total){ badTotal = true; continue; }
+    var set = R.sets[sid] || (R.sets[sid] = {total:total, parts:{}, count:0});
+    set.total = total;
+    seen++;
+    if (!set.parts[idx]){ set.parts[idx] = payload; set.count++; added++; }
+    R.active = sid;
+  }
+  if (!seen){
+    var el = $("recv-status"); el.className = "status bad";
+    setText(el, text.trim() ? "That doesn't look like a code from this page. Scan a code on the sending screen and paste the whole result." : "");
+    paintRecv(); return;
+  }
+  var st = $("recv-status"); st.className = "status ok";
+  setText(st, added ? ("Added " + added + " code" + (added===1?"":"s") + ".") : "Already had that one.");
+  paintRecv();
+  tryAssemble();
+}
+function paintRecv(){
+  var set = R.active ? R.sets[R.active] : null;
+  var total = set ? set.total : 0, have = set ? set.count : 0;
+  setText($("d-now"), total ? pad2(have) : "00");
+  setText($("d-of"), "/ " + (total ? pad2(total) : "00"));
+  setText($("d-stat"), total ? ("set " + R.active) : "waiting for the first code");
+  var rail = $("drail"); rail.innerHTML = "";
+  var miss = [];
+  if (total && total <= 400){
+    for (var i=1;i<=total;i++){
+      var d = document.createElement("div");
+      d.className = "cell" + (set.parts[i] ? " have" : "");
+      d.title = "Code " + i;
+      rail.appendChild(d);
+      if (!set.parts[i]) miss.push(i);
+    }
+  }
+  var mEl = $("missing");
+  if (!total || !miss.length) setText(mEl, "");
+  else setText(mEl, "Still needed: " + ranges(miss));
+  var others = Object.keys(R.sets).filter(function(k){ return k !== R.active; });
+  if (others.length) setText($("d-stat"), "set " + R.active + " · " + others.length + " other set(s) pasted");
+}
+function ranges(a){
+  var out = [], i = 0;
+  while (i < a.length){
+    var j = i; while (j+1 < a.length && a[j+1] === a[j]+1) j++;
+    out.push(j > i+1 ? (a[i] + "–" + a[j]) : a.slice(i, j+1).join(", "));
+    i = j+1;
+  }
+  return out.join(", ");
+}
+function tryAssemble(){
+  var set = R.active ? R.sets[R.active] : null;
+  if (!set || set.count !== set.total) return;
+  var joined = "", i;
+  for (i=1;i<=set.total;i++) joined += set.parts[i];
+  var out;
+  try { out = unpack(b44decode(joined)); }
+  catch(e){
+    var el = $("recv-status"); el.className = "status bad";
+    setText(el, "All " + set.total + " codes are in, but reassembly failed: " + e.message + " Use Start over and rescan.");
+    return;
+  }
+  showResult(out);
+}
+var MIME = {txt:"text/plain",md:"text/markdown",csv:"text/csv",json:"application/json",xml:"application/xml",html:"text/html",js:"text/javascript",css:"text/css",r:"text/plain",py:"text/plain",pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",zip:"application/zip"};
+function showResult(out){
+  var ext = (out.name.split(".").pop() || "").toLowerCase();
+  var type = MIME[ext] || "application/octet-stream";
+  if (R.blobUrl) URL.revokeObjectURL(R.blobUrl);
+  var blob = new Blob([out.data], {type:type});
+  R.blobUrl = URL.createObjectURL(blob);
+
+  var st = $("recv-status"); st.className = "status ok";
+  setText(st, "Complete. Checksum verified.");
+
+  var slot = $("result-slot");
+  slot.innerHTML = "";
+  var box = document.createElement("div"); box.className = "result";
+  var h = document.createElement("h3"); h.textContent = out.name;
+  var p = document.createElement("p"); p.textContent = bytes(out.data.length) + " · CRC32 verified";
+  var a = document.createElement("a");
+  a.href = R.blobUrl; a.download = out.name;
+  a.className = "act primary"; a.textContent = "Save file"; a.style.display = "inline-block"; a.style.textDecoration = "none";
+  box.appendChild(h); box.appendChild(p); box.appendChild(a);
+
+  if (/^image\//.test(type)){
+    var pv = document.createElement("div"); pv.className = "preview";
+    var img = document.createElement("img"); img.src = R.blobUrl; img.alt = out.name;
+    pv.appendChild(img); box.appendChild(pv);
+  } else if (out.data.length < 400000 && (/^text\//.test(type) || type === "application/json" || type === "application/xml")){
+    try {
+      var txt = new TextDecoder("utf-8", {fatal:true}).decode(out.data);
+      var pv2 = document.createElement("div"); pv2.className = "preview";
+      var pre = document.createElement("pre"); pre.textContent = txt.slice(0, 6000) + (txt.length > 6000 ? "\n…" : "");
+      var cp = document.createElement("button"); cp.className = "act"; cp.textContent = "Copy text"; cp.style.marginTop = "10px";
+      cp.addEventListener("click", function(){
+        if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){ cp.textContent = "Copied"; });
+      });
+      pv2.appendChild(pre); pv2.appendChild(cp); box.appendChild(pv2);
+    } catch(e){}
+  }
+  slot.appendChild(box);
+}
+
+$("inbox").addEventListener("input", function(e){
+  var v = e.target.value;
+  if (!v.trim()) return;
+  ingest(v);
+  e.target.value = "";
+});
+$("paste-btn").addEventListener("click", function(){
+  if (!navigator.clipboard || !navigator.clipboard.readText){
+    var el = $("recv-status"); el.className = "status bad";
+    setText(el, "This browser won't let the page read the clipboard. Tap the box and paste by hand.");
+    return;
+  }
+  navigator.clipboard.readText().then(ingest).catch(function(){
+    var el = $("recv-status"); el.className = "status bad";
+    setText(el, "Clipboard access was refused. Tap the box and paste by hand.");
+  });
+});
+$("clear-btn").addEventListener("click", function(){
+  R.sets = {}; R.active = null;
+  if (R.blobUrl){ URL.revokeObjectURL(R.blobUrl); R.blobUrl = null; }
+  $("result-slot").innerHTML = ""; $("inbox").value = "";
+  var el = $("recv-status"); el.className = "status"; setText(el, "Cleared. Paste the first code.");
+  paintRecv();
+});
+
+/* ================================================================= SHELL ============ */
+function mode(){ return $("send").classList.contains("on") ? "send" : "recv"; }
+function show(which){
+  var send = which === "send";
+  $("send").classList.toggle("on", send);
+  $("recv").classList.toggle("on", !send);
+  $("tab-send").setAttribute("aria-selected", send ? "true" : "false");
+  $("tab-recv").setAttribute("aria-selected", send ? "false" : "true");
+  if (!send) $("inbox").focus();
+}
+$("tab-send").addEventListener("click", function(){ show("send"); });
+$("tab-recv").addEventListener("click", function(){ show("recv"); });
+
+/* receiver URL for the bootstrap code */
+function defaultUrl(){
+  var saved = null;
+  try { saved = localStorage.getItem("qzUrl"); } catch(e){}
+  if (saved) return saved;
+  if (location.protocol === "http:" || location.protocol === "https:")
+    return location.origin + location.pathname + "#receive";
+  return "https://example.com/qrzip#receive";
+}
+function paintBoot(){
+  var url = $("boot-url").value.trim() || defaultUrl();
+  try { $("boot-qr").innerHTML = svgFor(url, ECCMAP.M, 12, 3); }
+  catch(e){
+    try { $("boot-qr").innerHTML = svgFor(url, ECCMAP.L, 40, 3); }
+    catch(e2){ $("boot-qr").innerHTML = ""; }
+  }
+}
+$("boot-url").value = defaultUrl();
+$("boot-url").addEventListener("input", function(){
+  try { localStorage.setItem("qzUrl", $("boot-url").value.trim()); } catch(e){}
+  paintBoot();
+});
+paintBoot();
+paintRecv();
+if (location.hash.toLowerCase().indexOf("receive") > -1) show("recv");
+})();
 </script>
 </body>
 </html>
