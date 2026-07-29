@@ -922,7 +922,7 @@ function pack(name, data){
   } catch(e){}
   if (brotli){
     try {
-      var b = brotli.compress(data, {quality: data.length > 4194304 ? 9 : 11, lgwin:24});
+      var b = brotli.compress(data, {quality: data.length > 1572864 ? 9 : 11, lgwin:24});
       if (b.length < best.body.length) best = {codec:2, body:b};
     } catch(e){}
   }
