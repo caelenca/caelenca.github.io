@@ -1227,9 +1227,16 @@ function readout(){
   $("readout").hidden = false;
   setText($("r-name"), S.name || "text snippet");
   setText($("r-orig"), bytes(S.data.length));
+  var origTotal = 0;
+  S.items.forEach(function(it){ origTotal += it.u8.length; });
+  var lossySavings = "";
+  if (S.lossy.on && origTotal > S.data.length){
+    lossySavings = " · compress images saved " + Math.round(100 - S.data.length/origTotal*100) +
+      "% (" + bytes(origTotal) + " → " + bytes(S.data.length) + ")";
+  }
   setText($("r-comp"), bytes(S.container.length) +
-    (S.container.length < S.data.length ? "  (" + Math.round(100 - S.container.length/S.data.length*100) + "% smaller" : "  (no gain") +
-    " · " + (S.codec || "stored") + ")");
+    (S.container.length < S.data.length ? "  (" + Math.round(100 - S.container.length/S.data.length*100) + "% smaller" : "  (no gain from lossless compression") +
+    " · " + (S.codec || "stored") + ")" + lossySavings);
   setText($("r-per"), (S.perBytes||0) + " B");
   setText($("r-codes"), String(S.codes.length));
   var el = $("send-status");
@@ -1407,13 +1414,13 @@ function recodeImage(it, pct, scale){
     if (bmp.close) bmp.close();
 
     // binary search the quality knob for the largest q that still fits the byte target
-    var lo = 0.05, hi = 0.96, best = null, bestQ = null, steps = 7;
+    var lo = 0.05, hi = 0.96, best = null, bestQ = null, steps = 7, everRejected = false;
     function step(i){
       if (i >= steps) return Promise.resolve();
       var mid = (lo + hi) / 2;
       return encodeCanvas(c, outType, mid).then(function(b){
         if (!b) return;
-        if (b.size <= target){ best = b; bestQ = mid; lo = mid; } else { hi = mid; }
+        if (b.size <= target){ best = b; bestQ = mid; lo = mid; } else { hi = mid; everRejected = true; }
         return step(i+1);
       });
     }
@@ -1422,7 +1429,9 @@ function recodeImage(it, pct, scale){
       if (!picked) return encodeCanvas(c, outType, 0.05).then(function(b){ return b ? {blob:b, q:0.05} : null; });
       return picked;
     }).then(function(res){
-      if (res) { res.w = w; res.h = h; res.ow = ow; res.oh = oh; }   // carry sizing out of this closure
+      // If nothing was ever rejected, the search ran out of steps while still climbing —
+      // the target never actually constrained it; resolution did the work instead.
+      if (res){ res.w = w; res.h = h; res.ow = ow; res.oh = oh; res.targetNotBinding = !everRejected; }
       return res;
     });
   }).then(function(r){
@@ -1433,7 +1442,8 @@ function recodeImage(it, pct, scale){
       var name = it.name, changed = (r.blob.type || outType) !== srcType;
       if (changed) name = it.name.replace(/\.[^.]+$/, "") + (/(webp)/.test(r.blob.type || outType) ? ".webp" : ".jpg");
       return {name:name, u8:u8, from:it.u8.length, to:u8.length, q:Math.round(r.q*100),
-              fmt:(r.blob.type||outType), changed:changed, orig:it.name, w:r.w, h:r.h, ow:r.ow, oh:r.oh, resized:(r.w!==r.ow||r.h!==r.oh)};
+              fmt:(r.blob.type||outType), changed:changed, orig:it.name, w:r.w, h:r.h, ow:r.ow, oh:r.oh,
+              resized:(r.w!==r.ow||r.h!==r.oh), targetNotBinding:!!r.targetNotBinding};
     });
   }).catch(function(){ return null; });
 }
@@ -1746,7 +1756,8 @@ function renderLossyReport(){
       d.innerHTML = "<b>" + r.orig + "</b> " + bytes(r.from) + " → " + bytes(r.to) +
                     " <span class='drop'>(" + Math.round(r.to/r.from*100) + "%, quality " + r.q + ")</span>" +
                     (r.changed ? " <span class='note'>→ " + r.name.split(".").pop() + "</span>" : "") +
-                    (r.resized ? " <span class='note'>→ " + r.ow + "×" + r.oh + " → " + r.w + "×" + r.h + "</span>" : "");
+                    (r.resized ? " <span class='note'>→ " + r.ow + "×" + r.oh + " → " + r.w + "×" + r.h + "</span>" : "") +
+                    (r.targetNotBinding ? " <span class='note'>· target not binding — using near-maximum quality</span>" : "");
     }
     rows.push(d);
   });
@@ -2118,7 +2129,81 @@ function showResult(out){
 }
 
 /* ---------------- camera capture ---------------- */
-var CAM = {on:false, stream:null, timer:null, detector:null, canvas:null, ctx:null, frames:0};
+/* ---------------- decoding, with a decoder that has to prove itself ----------------
+   Chromium exposes BarcodeDetector on Android by delegating to Play Services' ML Kit module.
+   getSupportedFormats() answers from a compile-time list, so on a degoogled ROM it still
+   cheerfully reports qr_code while no working detector exists at all: detect() then resolves
+   empty forever, throws, or simply never settles — and never once looks like an error.
+   So capability reporting is not trusted. The built-in decoder gets a probe window to find
+   something; after that the software decoder runs on alternate frames, and whichever finds
+   the first code keeps the job. Failing that way costs a little CPU; the old way cost the
+   entire transfer, silently.                                                              */
+var SCAN_PROBE_MS = 4000;      // how long the built-in decoder searches unaided
+var SCAN_TIMEOUT_MS = 1200;    // a detect() that takes longer than this is treated as hung
+var SCAN_MAX_ERRORS = 3;
+
+function scanReset(st){ st.frames = 0; st.hits = 0; st.errors = 0; st.t0 = 0; st.note = ""; st.said = ""; }
+
+function softDecode(st, v){
+  if (!window.jsQR) return null;
+  var vw = v.videoWidth, vh = v.videoHeight;
+  if (!vw || !vh) return null;
+  if (!st.canvas){ st.canvas = document.createElement("canvas"); st.ctx = st.canvas.getContext("2d", {willReadFrequently:true}); }
+  var side = Math.min(vw, vh), size = Math.min(side, 1024);
+  st.canvas.width = size; st.canvas.height = size;
+  try {
+    st.ctx.drawImage(v, (vw-side)/2, (vh-side)/2, side, side, 0, 0, size, size);
+    var img = st.ctx.getImageData(0, 0, size, size);
+    var r = window.jsQR(img.data, size, size, {inversionAttempts:"dontInvert"});
+    return (r && r.data) ? r.data : null;
+  } catch(e){ return null; }
+}
+
+function nativeDecode(st, v){
+  if (!st.detector) return Promise.resolve(null);
+  var timer, settled = false;
+  return Promise.race([
+    Promise.resolve().then(function(){ return st.detector.detect(v); }),
+    new Promise(function(res){ timer = setTimeout(function(){ res("\u0000hung"); }, SCAN_TIMEOUT_MS); })
+  ]).then(function(list){
+    clearTimeout(timer); settled = true;
+    if (list === "\u0000hung"){ st.errors++; return null; }
+    var out = [];
+    for (var i = 0; i < (list ? list.length : 0); i++) if (list[i] && list[i].rawValue) out.push(list[i].rawValue);
+    return out.length ? out : null;
+  }).catch(function(){ clearTimeout(timer); if (!settled) st.errors++; return null; });
+}
+
+function scanOnce(st, v){
+  st.frames++;
+  if (!st.t0) st.t0 = Date.now();
+
+  if (st.detector && st.errors >= SCAN_MAX_ERRORS){
+    st.detector = null;
+    st.note = "software decoder — the built-in one kept failing";
+  }
+  if (!st.detector){
+    var only = softDecode(st, v);
+    return Promise.resolve(only ? [only] : []);
+  }
+  // the built-in decoder searches alone until it proves itself or the probe window expires
+  if (st.hits > 0 || (Date.now() - st.t0) < SCAN_PROBE_MS){
+    return nativeDecode(st, v).then(function(r){ if (r) st.hits++; return r || []; });
+  }
+  // nothing found yet: alternate, and let the first one to see a code keep the job
+  if (st.frames % 2 === 0){
+    return nativeDecode(st, v).then(function(r){ if (r) st.hits++; return r || []; });
+  }
+  var t = softDecode(st, v);
+  if (t){
+    st.detector = null;
+    st.note = "software decoder — the built-in one reported support but saw nothing";
+    return Promise.resolve([t]);
+  }
+  return Promise.resolve([]);
+}
+
+var CAM = {on:false, stream:null, timer:null, detector:null, canvas:null, ctx:null, frames:0, hits:0, errors:0, t0:0, note:"", said:""};
 function camSay(msg, cls){ var el = $("cam-status"); el.className = "status" + (cls ? " " + cls : ""); setText(el, msg); }
 
 function stopCam(msg, cls){
@@ -2153,7 +2238,7 @@ function startCam(){
     var pp = v.play();                                  // older Safari returns undefined here
     return (pp && pp.catch) ? pp.catch(function(){}) : null;
   }).then(function(){
-    CAM.on = true; CAM.frames = 0;
+    CAM.on = true; scanReset(CAM);
     return pickDetector();
   }).then(function(kind){
     camSay("Looking for codes — " + kind + ".");
@@ -2189,22 +2274,14 @@ function camFound(text){
 }
 
 function camFrame(){
-  var v = $("cam");
-  if (CAM.detector) {
-    return CAM.detector.detect(v).then(function(list){
-      for (var i=0;i<list.length;i++) if (list[i].rawValue) camFound(list[i].rawValue);
-    });
-  }
-  var vw = v.videoWidth, vh = v.videoHeight;
-  if (!vw || !vh) return Promise.resolve();
-  if (!CAM.canvas){ CAM.canvas = document.createElement("canvas"); CAM.ctx = CAM.canvas.getContext("2d", {willReadFrequently:true}); }
-  var side = Math.min(vw, vh), size = Math.min(side, 1024);   // keep >=2px per module for dense codes
-  CAM.canvas.width = size; CAM.canvas.height = size;
-  CAM.ctx.drawImage(v, (vw-side)/2, (vh-side)/2, side, side, 0, 0, size, size);
-  var img = CAM.ctx.getImageData(0, 0, size, size);
-  var r = window.jsQR ? window.jsQR(img.data, size, size, {inversionAttempts:"dontInvert"}) : null;
-  if (r && r.data) camFound(r.data);
-  return Promise.resolve();
+  return scanOnce(CAM, $("cam")).then(function(list){
+    if (CAM.note && CAM.note !== CAM.said){
+      CAM.said = CAM.note;
+      var set = R.active ? R.sets[R.active] : null;
+      camSay("Switched to the " + CAM.note + (set ? " · caught " + set.count + " of " + set.total : ""), "");
+    }
+    list.forEach(camFound);
+  });
 }
 
 function camLoop(){
@@ -2219,7 +2296,7 @@ function camLoop(){
 }
 
 /* ---------------- FR-14.5: the sender reads the phone's list ---------------- */
-var SC = {on:false, stream:null, timer:null, detector:null, canvas:null, ctx:null, wasPlaying:false};
+var SC = {on:false, stream:null, timer:null, detector:null, canvas:null, ctx:null, wasPlaying:false, frames:0, hits:0, errors:0, t0:0, note:"", said:""};
 function scSay(msg, cls){ var el = $("scam-status"); el.className = "status" + (cls ? " " + cls : ""); setText(el, msg); }
 
 function scStop(msg, cls){
@@ -2250,7 +2327,7 @@ function scStart(){
       var pp = v.play(); return (pp && pp.catch) ? pp.catch(function(){}) : null;
     })
     .then(function(){
-      SC.on = true;
+      SC.on = true; scanReset(SC);
       if (typeof window.BarcodeDetector === "undefined") return "software decoder";
       return window.BarcodeDetector.getSupportedFormats().then(function(f){
         if (f && f.indexOf("qr_code") > -1){ SC.detector = new window.BarcodeDetector({formats:["qr_code"]}); return "built-in decoder"; }
@@ -2286,20 +2363,10 @@ function scGot(text){
 }
 
 function scFrame(){
-  var v = $("scam");
-  if (SC.detector) return SC.detector.detect(v).then(function(list){
-    for (var i=0;i<list.length;i++) if (list[i].rawValue) scGot(list[i].rawValue);
+  return scanOnce(SC, $("scam")).then(function(list){
+    if (SC.note && SC.note !== SC.said){ SC.said = SC.note; scSay("Switched to the " + SC.note + ".", ""); }
+    list.forEach(scGot);
   });
-  var vw = v.videoWidth, vh = v.videoHeight;
-  if (!vw || !vh) return Promise.resolve();
-  if (!SC.canvas){ SC.canvas = document.createElement("canvas"); SC.ctx = SC.canvas.getContext("2d", {willReadFrequently:true}); }
-  var side = Math.min(vw, vh), size = Math.min(side, 1024);
-  SC.canvas.width = size; SC.canvas.height = size;
-  SC.ctx.drawImage(v, (vw-side)/2, (vh-side)/2, side, side, 0, 0, size, size);
-  var img = SC.ctx.getImageData(0, 0, size, size);
-  var r = window.jsQR ? window.jsQR(img.data, size, size, {inversionAttempts:"dontInvert"}) : null;
-  if (r && r.data) scGot(r.data);
-  return Promise.resolve();
 }
 function scLoop(){
   if (!SC.on) return;
