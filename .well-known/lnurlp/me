@@ -1,1 +1,1 @@
-{"callback":"https://zeuspay.com/api/lnurl/pay/outgoinghydra77","metadata":"[[\"text/plain\",\"Self-custodial LN address\"],[\"text/identifier\",\"me@caelen.ca\"]]","tag":"payRequest","minSendable":1000,"maxSendable":612000000000,"allowsNostr":true,"nostrPubkey":"","commentAllowed":600}
+{"callback":"https://zeuspay.com/api/lnurl/nwc/pay/outgoinghydra77","metadata":"[[\"text/plain\",\"Self-custodial LN address\"],[\"text/identifier\",\"me@caelen.ca\"]]","tag":"payRequest","minSendable":1000,"maxSendable":612000000000,"allowsNostr":true,"nostrPubkey":"","commentAllowed":600}
