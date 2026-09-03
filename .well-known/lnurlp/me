@@ -1,1 +1,19 @@
-{"callback":"https://zeuspay.com/api/lnurl/nwc/pay/outgoinghydra77","metadata":"[[\"text/plain\",\"Self-custodial LN address\"],[\"text/identifier\",\"me@caelen.ca\"]]","tag":"payRequest","minSendable":1000,"maxSendable":612000000000,"allowsNostr":true,"nostrPubkey":"","commentAllowed":600}
+{
+  "tag": "payRequest",
+  "commentAllowed": 255,
+  "callback": "https://lite--main.caelenm.deno.net/lnurlp/me/callback",
+  "minSendable": 1000,
+  "maxSendable": 10000000000,
+  "metadata": "[[\"text/identifier\",\"me@caelen.ca\"],[\"text/plain\",\"Sats for me\"]]",
+  "payerData": {
+    "name": {
+      "mandatory": false
+    },
+    "email": {
+      "mandatory": false
+    },
+    "pubkey": {
+      "mandatory": false
+    }
+  }
+}
