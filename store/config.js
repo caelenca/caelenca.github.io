@@ -1,4 +1,6 @@
-{
+// Fallback for opening index.html directly from disk (file://),
+// where browsers refuse to fetch config.json. Keep it beside config.json.
+window.__STORE_CONFIG = {
   "version": 1,
   "store": {
     "name": "Caelen's store",
@@ -62,4 +64,4 @@
       "options": []
     }
   ]
-}
+};
