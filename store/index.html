@@ -86,9 +86,62 @@ h3{font-size:15px;margin:0 0 4px}
 .prod .ph{aspect-ratio:4/3;background:var(--bg);display:flex;align-items:center;justify-content:center;
   color:var(--muted);overflow:hidden}
 .prod .noimg{opacity:.3;display:flex}
+.ph{position:relative}
+.prod-open{cursor:pointer}
+.prod-open:hover{color:var(--accent)}
+/* Clicking the middle of the image opens the item; the arrow strips sit above it. */
+.gal-open{position:absolute;inset:0;border:0;background:none;cursor:zoom-in;padding:0}
+/* Hitbox: full height, a quarter of the width on each side. */
+.gal-arm{position:absolute;top:0;bottom:0;width:25%;border:0;background:none;cursor:pointer;
+  padding:0;display:flex;align-items:center;opacity:0;transition:opacity .12s}
+.gal-arm.left{left:0;justify-content:flex-start}
+.gal-arm.right{right:0;justify-content:flex-end}
+.ph:hover .gal-arm,.gal-arm:focus-visible{opacity:1}
+.gal-arrow{display:flex;align-items:center;justify-content:center;width:30px;height:44px;margin:0 6px;
+  background:rgba(20,18,25,.55);color:#fff;border-radius:8px;font-size:22px;line-height:1;
+  backdrop-filter:blur(2px)}
+.gal-arm:hover .gal-arrow{background:rgba(20,18,25,.8)}
+.gal-count{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);
+  background:rgba(20,18,25,.6);color:#fff;border-radius:99px;padding:2px 9px;font-size:11.5px;
+  font-variant-numeric:tabular-nums;pointer-events:none}
+@media (hover:none){.gal-arm{opacity:.85}}
+
+/* full item view */
+dialog.itemdlg{max-width:920px;width:calc(100% - 28px);padding:0;border-radius:16px}
+.itemdlg-in{position:relative}
+.itemdlg-x{position:absolute;top:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:99px;
+  border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;font-size:14px}
+.itemdlg-x:hover{color:var(--ink)}
+.itemdlg-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0}
+@media(max-width:700px){.itemdlg-grid{grid-template-columns:1fr}}
+.itemdlg-media .ph{aspect-ratio:1/1;border-radius:16px 0 0 16px}
+@media(max-width:700px){.itemdlg-media .ph{border-radius:16px 16px 0 0;aspect-ratio:4/3}}
+.itemdlg-media img{width:100%;height:100%;object-fit:cover}
+.itemdlg-body{padding:26px 24px 24px;max-height:78vh;overflow:auto}
+.itemdlg-title{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:0 0 10px}
+/* A description can contain an unbroken URL or run of characters; wrap it
+   rather than letting it push the dialog sideways. */
+.itemdlg-desc{white-space:pre-wrap;color:var(--muted);margin:0;overflow-wrap:anywhere}
+.imgrow{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;padding:6px 8px;margin-bottom:6px}
+.imgrow .thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;flex:none}
+
+/* Manual payment is set apart from the catalogue by a faint rule. */
+.cashier-manual{padding-bottom:22px;border-bottom:1px solid var(--line)}
+
+/* cashier keypad */
+.pad{max-width:420px;margin:0 auto;text-align:center}
+.pad-amt{font-size:52px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.pad-sats{color:var(--muted);font-size:17px;margin-top:2px}
+.pad-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 14px}
+.pad-keys button{padding:20px 0;font-size:20px;font-weight:600;border-radius:12px;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.pad-keys button:active{background:var(--bg)}
+.pad-wide{display:flex;flex-direction:column;gap:10px}
+.pad-wide button{padding:16px;font-size:16px;font-weight:650;border-radius:12px;cursor:pointer;border:1px solid var(--line)}
 .prod .ph img{width:100%;height:100%;object-fit:cover}
 .prod .body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
-.prod .desc{color:var(--muted);font-size:13.5px;flex:1;white-space:pre-wrap}
+.prod .desc{color:var(--muted);font-size:13.5px;flex:1;white-space:pre-wrap;overflow-wrap:anywhere}
 .price{font-weight:650;font-variant-numeric:tabular-nums}
 .price .sats{color:var(--muted);font-weight:500;font-size:13px;display:block}
 .add{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:9px;
@@ -190,6 +243,8 @@ dialog::backdrop{background:rgba(10,9,14,.5)}
 .draftbar .wrap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:13px}
 footer .wrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.footlink{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line)}
+.footlink:hover{color:var(--ink)}
 .chk{display:flex;gap:9px;align-items:flex-start;margin:0 0 12px;font-size:14px}
 .chk input{margin:3px 0 0;flex:none;width:16px;height:16px;accent-color:var(--accent)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -248,6 +303,7 @@ footer .wrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 
 <footer><div class="wrap">
   <span id="footName"></span>
+  <a href="tos/" class="footlink">Terms of sale</a>
   <span class="grow"></span>
   <span id="rateInfo"></span>
   <button class="ghost" id="adminLink" hidden>Store config</button>
@@ -657,6 +713,8 @@ const show=(...nodes)=>{view.replaceChildren(...nodes.flat().filter(Boolean));wi
    local draft to localStorage; publishing means downloading the file and
    committing it. A visitor editing config only ever affects their own browser.
    ══════════════════════════════════════════════════════════════════════════ */
+const MAX_IMAGES=10;
+const DESC_LIMIT=300;      // characters shown on a card before "…"
 const DRAFT_KEY="satstore.draft.v1";
 const CART_KEY="satstore.cart.v1";
 const ORDERS_KEY="satstore.orders.v1";
@@ -686,6 +744,7 @@ const quickHash=s=>{let h=2166136261>>>0;
   for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}
   return h.toString(16)};
 let rate=null;        // { currency, price, source, at }
+let rateChecked=false; // a rate lookup has finished, so "unavailable" is honest
 
 const lsGet=k=>{try{return localStorage.getItem(k)}catch{return null}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
@@ -711,8 +770,16 @@ function normalise(raw){
       name:String(p.name||"Untitled"),
       desc:String(p.desc||""),
       price:Number(p.price)||0,
-      image:typeof p.image==="string"?p.image:"",
+      // `image` was a single string; keep reading it so old configs still work.
+      images:(Array.isArray(p.images)?p.images:[p.image])
+        .filter(s=>typeof s==="string"&&s.trim()).slice(0,MAX_IMAGES),
       available:p.available!==false,
+      // Buyer names the price (donations, "pay what you want"). The CANONICAL
+      // config is the only thing that may grant this — see the verification
+      // tool, which reads the flag from the merchant's config, never the order.
+      anyPrice:p.anyPrice===true,
+      minPrice:Number(p.minPrice)>0?Number(p.minPrice):0,
+      noQuantity:p.noQuantity===true,
       options:Array.isArray(p.options)?p.options.filter(o=>o&&o.name&&Array.isArray(o.choices))
         .map(o=>({name:String(o.name),choices:o.choices.map(String).filter(Boolean)})):[]}));
   }
@@ -870,7 +937,11 @@ const attestOk=()=>attest.state==="verified";
 const attestBad=()=>["mismatch","badsig","pinmismatch"].includes(attest.state);
 
 const ATTEST_TEXT={
-  verified:["Store details verified","This page matches the signed canonical config."],
+  verified:["Store details verified",
+    "The products and prices on this page match the configuration the store signed, so they have "+
+    "not been altered or left stale. That is all it proves: you must still trust "+
+    location.hostname+" itself to run an honest storefront, to hold the stock it lists, and to "+
+    "send what you paid for."],
   mismatch:["Store does NOT match canonical","This page is serving a different config.json than the signed canonical one."],
   badsig:["Signature invalid","The canonical signature is not valid for this store's address."],
   pinmismatch:["Different signer than you pinned","This store is signed by an address other than the one you pinned."],
@@ -934,17 +1005,23 @@ const isSats=()=>String(cfg.store.currency||"").toUpperCase()==="SATS";
 const fmtFiat=n=>new Intl.NumberFormat(undefined,{style:"currency",currency:cfg.store.currency||"CAD"}).format(n);
 const fmtSats=n=>new Intl.NumberFormat().format(Math.round(n))+" sats";
 
-/** Price of one unit, in sats. Needs a live rate when the store prices in fiat. */
-function unitSats(p){
-  if(isSats())return Math.round(p.price);
+/** Price of one unit, in sats. Needs a live rate when the store prices in fiat.
+    `override` carries a buyer-chosen amount for any-price items. */
+function unitSats(p,override=null){
+  const price=override??p.price;
+  if(isSats())return Math.round(price);
   if(!rate)return null;
-  return Math.round((p.price/rate.price)*1e8)}
+  return Math.round((price/rate.price)*1e8)}
 
 function priceLabel(p){
+  if(p.anyPrice)return[el("span",{text:"You choose"}),
+    p.minPrice>0?el("span",{class:"sats",
+      text:`from ${isSats()?fmtSats(p.minPrice):fmtFiat(p.minPrice)}`}):null];
   if(isSats())return[el("span",{text:fmtSats(p.price)})];
   const s=unitSats(p);
   return[el("span",{text:fmtFiat(p.price)}),
-    el("span",{class:"sats",text:s===null?"rate unavailable":"≈ "+fmtSats(s)})]}
+    // Stay quiet until a rate lookup has actually finished.
+    el("span",{class:"sats",text:s!==null?"≈ "+fmtSats(s):rateChecked?"rate unavailable":"…"})]}
 
 /* Bull Bitcoin is the preferred source. Its JSON-RPC endpoint sends
    Access-Control-Allow-Origin:*, returns integer prices with a `precision`
@@ -986,29 +1063,34 @@ async function fetchRate(){
 let cart=[];
 const loadCart=()=>{try{cart=JSON.parse(lsGet(CART_KEY)||"[]");if(!Array.isArray(cart))cart=[]}catch{cart=[]}};
 const saveCart=()=>{lsSet(CART_KEY,JSON.stringify(cart));chrome()};
-const cartKey=(id,opts)=>id+"|"+JSON.stringify(opts||{});
+// Buyer-chosen amounts are part of a line's identity: two donations of
+// different sizes are two lines, not one line of quantity two.
+const cartKey=(id,opts,price=null)=>id+"|"+JSON.stringify(opts||{})+"|"+(price??"");
 const findProduct=id=>cfg.products.find(p=>p.id===id);
 const cartLines=()=>cart.map(l=>({...l,product:findProduct(l.id)})).filter(l=>l.product);
 const cartCount=()=>cartLines().reduce((n,l)=>n+l.qty,0);
 
-function addToCart(id,opts,qty=1){
-  const k=cartKey(id,opts);
-  const line=cart.find(l=>cartKey(l.id,l.opts)===k);
-  if(line)line.qty+=qty; else cart.push({id,opts:opts||{},qty});
+function addToCart(id,opts,qty=1,price=null){
+  const k=cartKey(id,opts,price);
+  const line=cart.find(l=>cartKey(l.id,l.opts,l.price??null)===k);
+  if(line)line.qty+=qty; else cart.push({id,opts:opts||{},qty,price:price??null});
   saveCart()}
 function setQty(k,qty){
-  const i=cart.findIndex(l=>cartKey(l.id,l.opts)===k);
+  const i=cart.findIndex(l=>cartKey(l.id,l.opts,l.price??null)===k);
   if(i<0)return;
   if(qty<=0)cart.splice(i,1); else cart[i].qty=qty;
   saveCart()}
+
+/** What one unit of a cart line costs, honouring a buyer-chosen amount. */
+const linePrice=l=>l.product.anyPrice?(Number(l.price)||0):l.product.price;
 
 function cartTotals(){
   const lines=cartLines();
   let fiat=0,sats=0,priceable=true;
   for(const l of lines){
-    const u=unitSats(l.product);
+    const u=unitSats(l.product,l.product.anyPrice?linePrice(l):null);
     if(u===null)priceable=false; else sats+=u*l.qty;
-    fiat+=l.product.price*l.qty}
+    fiat+=linePrice(l)*l.qty}
   const ship=Math.max(0,Math.round(Number(cfg.store.shippingSats)||0));
   if(lines.length)sats+=ship;
   return{lines,fiat,sats,ship,priceable}}
@@ -1409,6 +1491,131 @@ function chrome(){
   $("rateInfo").textContent=rate?`1 BTC ≈ ${fmtFiat(rate.price)} · ${rate.source}`:"";
 }
 
+/* ── product presentation ─────────────────────────────────────────────── */
+const NO_IMAGE_SVG='<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 17 5-5 4 4 3-2 4 4"/></svg>';
+
+/** Trim a description for a card. Cuts on a word boundary so it reads cleanly. */
+function shortDesc(text){
+  const s=String(text||"");
+  if(s.length<=DESC_LIMIT)return{text:s,truncated:false};
+  const cut=s.slice(0,DESC_LIMIT);
+  const space=cut.lastIndexOf(" ");
+  return{text:(space>DESC_LIMIT*0.6?cut.slice(0,space):cut).trimEnd()+"…",truncated:true};
+}
+
+/**
+ * Image gallery with hover arrows and an x/total counter.
+ * `onOpen` fires when the middle of the image is clicked — the arrow hitboxes
+ * are a quarter of the width on each side and must not trigger it.
+ */
+function gallery(p,{onOpen=null,start=0}={}){
+  const imgs=p.images||[];
+  let i=Math.min(start,Math.max(0,imgs.length-1));
+
+  const frame=el("div",{class:"ph"});
+  const counter=el("div",{class:"gal-count"});
+  const prev=el("button",{class:"gal-arm left","aria-label":"Previous image"},
+    el("span",{class:"gal-arrow"},"‹"));
+  const next=el("button",{class:"gal-arm right","aria-label":"Next image"},
+    el("span",{class:"gal-arrow"},"›"));
+
+  const draw=()=>{
+    // replaceChildren stringifies null into the text "null" — unlike el(),
+    // which drops it. Filter before handing anything over.
+    frame.replaceChildren(...[
+      imgs.length
+        ?el("img",{src:imgs[i],alt:p.name,loading:"lazy",draggable:false})
+        :el("div",{class:"noimg",html:NO_IMAGE_SVG}),
+      onOpen?el("button",{class:"gal-open","aria-label":`Open ${p.name}`,
+        onclick:e=>{e.stopPropagation();onOpen(i)}}):null,
+      imgs.length>1?prev:null,
+      imgs.length>1?next:null,
+      imgs.length>1?counter:null,
+    ].filter(Boolean));
+    counter.textContent=`${i+1}/${imgs.length}`};
+
+  const step=d=>e=>{
+    e.stopPropagation();e.preventDefault();
+    i=(i+d+imgs.length)%imgs.length;
+    draw()};
+  prev.addEventListener("click",step(-1));
+  next.addEventListener("click",step(1));
+
+  draw();
+  return{node:frame,get index(){return i}}}
+
+/* ── full item view ───────────────────────────────────────────────────── */
+function openItem(p,startIndex=0){
+  const dlg=el("dialog",{class:"itemdlg"});
+  const close=()=>dlg.close();
+
+  const stk=stockOf(p.id);
+  const inCart=cartLines().filter(l=>l.id===p.id).reduce((n,l)=>n+l.qty,0);
+  const soldOut=p.available===false||(stk!==null&&stk<=0);
+  const maxed=stk!==null&&inCart>=stk;
+  const needRate=!isSats()&&!rate;
+
+  const sels={};
+  const optRows=(p.options||[]).map(o=>{
+    const sel=el("select",{"aria-label":o.name},o.choices.map(c=>el("option",{value:c,text:c})));
+    sels[o.name]=sel;
+    return el("label",{class:"f"},el("span",{text:o.name}),sel)});
+
+  const qtyVal=el("span",{text:"1"});
+  let qty=1;
+  const setQ=n=>{qty=Math.max(1,stk!==null?Math.min(n,Math.max(1,stk-inCart)):n);
+    qtyVal.textContent=String(qty)};
+  const qtyRow=p.noQuantity?null:el("label",{class:"f"},el("span",{text:"Quantity"}),
+    el("div",{class:"qty",style:"width:max-content"},
+      el("button",{type:"button",onclick:()=>setQ(qty-1),"aria-label":"Decrease"},"−"),
+      qtyVal,
+      el("button",{type:"button",onclick:()=>setQ(qty+1),"aria-label":"Increase"},"+")));
+
+  const priceIn=el("input",{type:"number",min:String(p.minPrice||0),
+    step:isSats()?"1":"0.01",placeholder:isSats()?"sats":cfg.store.currency});
+  const priceErr=el("div");
+  const priceRow=p.anyPrice?el("label",{class:"f"},
+    el("span",{text:`Amount you'd like to pay${isSats()?" (sats)":` (${cfg.store.currency})`}`}),
+    p.minPrice>0?el("div",{class:"hint",text:`Minimum ${isSats()?fmtSats(p.minPrice):fmtFiat(p.minPrice)}.`}):null,
+    priceIn,priceErr):null;
+
+  const add=el("button",{class:"add",disabled:needRate||maxed,onclick:()=>{
+    const opts={};for(const[k,s]of Object.entries(sels))opts[k]=s.value;
+    let price=null;
+    if(p.anyPrice){
+      price=Number(priceIn.value);
+      if(!Number.isFinite(price)||price<=0||price<(p.minPrice||0)){
+        priceErr.replaceChildren(el("div",{class:"note err",style:"margin:8px 0 0"},
+          el("span",{class:"body",text:p.minPrice>0
+            ?`Enter at least ${isSats()?fmtSats(p.minPrice):fmtFiat(p.minPrice)}.`
+            :"Enter an amount."})));
+        return}
+    }
+    addToCart(p.id,opts,p.noQuantity?1:qty,price);
+    close();go("#/cart")}},maxed?"All in cart":"Add to cart");
+
+  const gal=gallery(p,{start:startIndex});
+
+  dlg.append(el("div",{class:"itemdlg-in"},
+    el("button",{class:"itemdlg-x","aria-label":"Close",onclick:close},"✕"),
+    el("div",{class:"itemdlg-grid"},
+      el("div",{class:"itemdlg-media"},gal.node),
+      el("div",{class:"itemdlg-body"},
+        el("h2",{class:"itemdlg-title",text:p.name}),
+        p.desc?el("p",{class:"itemdlg-desc",text:p.desc}):null,
+        el("div",{class:"price",style:"font-size:18px;margin:14px 0 4px"},priceLabel(p)),
+        stk!==null&&stk>0&&stk<=5?el("div",{class:"soldout",style:"color:var(--warn)",
+          text:`only ${stk} left`}):null,
+        priceRow,
+        optRows,
+        qtyRow,
+        soldOut?el("div",{class:"soldout",style:"margin-top:14px",text:"Sold out"}):add))));
+
+  document.body.append(dlg);
+  dlg.addEventListener("close",()=>dlg.remove());
+  dlg.addEventListener("click",e=>{if(e.target===dlg)close()});
+  dlg.showModal()}
+
 /* ── storefront ───────────────────────────────────────────────────────── */
 function viewStore(){
   chrome();
@@ -1449,42 +1656,46 @@ function viewStore(){
     cfg.store.tagline?el("p",{class:"sub",text:cfg.store.tagline}):null);
 
   const needRate=!isSats()&&!rate;
-  const warn=needRate?el("div",{class:"note err"},
+  // Don't accuse the rate sources of being down before they have had a chance
+  // to answer — this used to flash red on every single load.
+  const warn=(needRate&&rateChecked)?el("div",{class:"note err"},
     el("b",null,"Prices can't be shown right now."),
     el("span",{class:"body",text:`This store prices in ${cfg.store.currency}, and no exchange-rate source could be reached. Checkout is disabled until a rate loads.`})):null;
 
   const grid=el("div",{class:"grid"},cfg.products.map(p=>{
-    // `html` is only ever fed this constant markup — createElement("svg") would
-    // build an HTMLUnknownElement, which renders nothing.
-    const img=p.image?el("img",{src:p.image,alt:p.name,loading:"lazy"}):
-      el("div",{class:"noimg",html:'<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 17 5-5 4 4 3-2 4 4"/></svg>'});
     const sels={};
     const optRows=(p.options||[]).map(o=>{
       const sel=el("select",{"aria-label":o.name},o.choices.map(c=>el("option",{value:c,text:c})));
       sels[o.name]=sel;
-      return el("label",{class:"f"},el("span",{text:o.name}),sel)});
+      return el("label",{class:"f",onclick:e=>e.stopPropagation()},el("span",{text:o.name}),sel)});
     const stk=stockOf(p.id);
     const inCart=cartLines().filter(l=>l.id===p.id).reduce((n,l)=>n+l.qty,0);
     const soldOut=p.available===false||(stk!==null&&stk<=0);
     const maxed=stk!==null&&inCart>=stk;
+    const open=start=>openItem(p,start);
+    const gal=gallery(p,{onOpen:open});
+    const {text:descText}=shortDesc(p.desc);
     return el("article",{class:"prod"},
-      el("div",{class:"ph"},img),
+      gal.node,
       el("div",{class:"body"},
-        el("h3",{text:p.name}),
-        p.desc?el("p",{class:"desc",text:p.desc}):el("p",{class:"desc"}),
+        el("h3",{class:"prod-open",text:p.name,onclick:()=>open(gal.index)}),
+        el("p",{class:"desc prod-open",text:descText,onclick:()=>open(gal.index)}),
         el("div",{class:"price"},priceLabel(p)),
         stk!==null&&stk>0&&stk<=5?el("div",{class:"soldout",style:"color:var(--warn)",
           text:`only ${stk} left`}):null,
         optRows,
         soldOut?el("div",{class:"soldout",text:"Sold out"})
+        // Any-price items always open the full view, where the buyer names the amount.
         :el("button",{class:"add",disabled:needRate||maxed,onclick:()=>{
+          if(p.anyPrice)return open(gal.index);
           const opts={};for(const[k,s]of Object.entries(sels))opts[k]=s.value;
-          addToCart(p.id,opts);go("#/cart")}},maxed?"All in cart":"Add to cart")));
+          addToCart(p.id,opts);go("#/cart")}},
+          maxed?"All in cart":p.anyPrice?"Choose an amount":"Add to cart")));
   }));
 
-  const setup=el("p",{style:"margin-top:36px"},
-    el("button",{class:"ghost",onclick:()=>go("#/admin")},"Store config"));
-  show(head,warn,grid,setup)}
+  // No config button here: the footer already carries one, and a second copy
+  // under the products only invited shoppers to poke at it.
+  show(head,warn,grid)}
 
 /* ── cart ─────────────────────────────────────────────────────────────── */
 function viewCart(){
@@ -1505,14 +1716,14 @@ function viewCart(){
         el("div",{style:"font-weight:600",text:l.product.name}),
         optTxt?el("div",{style:"color:var(--muted);font-size:13px",text:optTxt}):null,
         el("div",{style:"color:var(--muted);font-size:13px",
-          text:isSats()?fmtSats(l.product.price)+" each":fmtFiat(l.product.price)+" each"})),
+          text:isSats()?fmtSats(linePrice(l))+" each":fmtFiat(linePrice(l))+" each"})),
       el("div",{class:"qty"},
         el("button",{onclick:()=>{setQty(k,l.qty-1);viewCart()},"aria-label":"Decrease"},"−"),
         el("span",{text:String(l.qty)}),
         el("button",{disabled:!inStock(l.id,l.qty+1),
           onclick:()=>{setQty(k,l.qty+1);viewCart()},"aria-label":"Increase"},"+")),
       el("div",{style:"min-width:96px;text-align:right;font-variant-numeric:tabular-nums",
-        text:isSats()?fmtSats(l.product.price*l.qty):(u===null?"—":fmtFiat(l.product.price*l.qty))}));
+        text:isSats()?fmtSats(linePrice(l)*l.qty):(u===null?"—":fmtFiat(linePrice(l)*l.qty))}));
   }));
 
   const totals=el("div",{class:"card",style:"margin-top:18px"},
@@ -1583,7 +1794,7 @@ function viewCheckout(){
     el("h3",{text:"Order summary",style:"margin-bottom:10px"}),
     t.lines.map(l=>el("div",{class:"totals"},
       el("span",{text:`${l.qty} × ${l.product.name}`}),
-      el("span",{text:isSats()?fmtSats(l.product.price*l.qty):fmtFiat(l.product.price*l.qty)}))),
+      el("span",{text:isSats()?fmtSats(linePrice(l)*l.qty):fmtFiat(linePrice(l)*l.qty)}))),
     t.ship>0?el("div",{class:"totals"},el("span",null,"Shipping"),el("span",{text:fmtSats(t.ship)})):null,
     el("div",{class:"totals grand"},el("span",null,"Total"),el("span",{text:fmtSats(t.sats)})));
 
@@ -1791,9 +2002,9 @@ function buildOrder(t,extra={}){
     canonicalUrl:cfg.store.canonicalUrl||null,
     attestation:attest.state||"off",
     items:t.lines.map(l=>({id:l.id,name:l.product.name,qty:l.qty,opts:l.opts,
-      unitPrice:l.product.price,lineTotal:l.product.price*l.qty,
+      unitPrice:linePrice(l),lineTotal:linePrice(l)*l.qty,
       currency:isSats()?"SATS":cfg.store.currency,
-      lineLabel:isSats()?fmtSats(l.product.price*l.qty):fmtFiat(l.product.price*l.qty)})),
+      lineLabel:isSats()?fmtSats(linePrice(l)*l.qty):fmtFiat(linePrice(l)*l.qty)})),
     shippingSats:t.ship,
     totalSats:t.sats,
     fiatTotal:isSats()?null:Number(t.fiat.toFixed(2)),
@@ -1814,7 +2025,7 @@ async function finishOrder(t,decoded,preimage,ref,extra={}){
     preimage:preimage||null};
   lastOrder=o;
   rememberOrder(o);
-  if(o.channel==="in-person"){till={}} else {cart=[];saveCart()}
+  if(o.channel==="in-person"){till={};manualAmount=null} else {cart=[];saveCart()}
   go("#/done")}
 
 function viewDone(){
@@ -2010,7 +2221,9 @@ function adminInventory(d){
     setTimeout(()=>URL.revokeObjectURL(url),1000)};
 
   if(d.store.trackInventory){
-    rows.replaceChildren(...d.products.map(p=>{
+    // Items sold singly or at a buyer-chosen price have no meaningful stock count.
+    const counted=d.products.filter(p=>!p.noQuantity);
+    rows.replaceChildren(...counted.map(p=>{
       const n=el("input",{type:"number",min:"0",step:"1",style:"width:110px",
         value:String(draft[p.id]??0)});
       n.addEventListener("change",()=>{draft[p.id]=Math.max(0,Math.floor(Number(n.value)||0))});
@@ -2174,15 +2387,31 @@ function adminVerifyOrder(){
     }
 
     // 6. prices charged match the canonical catalogue
+    // Whether a buyer may name their own price is read from the CANONICAL
+    // config, never from the order. An order cannot claim a fixed-price item
+    // was pay-what-you-want; the merchant's signed catalogue decides.
     const cat=Object.fromEntries((canonical?.products||[]).map(p=>[p.id,p]));
     const bad=[];
+    let chosen=0;
     for(const it of order.items||[]){
       const p=cat[it.id];
       if(!p){bad.push(`${it.id||it.name}: not in the canonical catalogue`);continue}
-      if(Number(p.price)!==Number(it.unit_price))
+      const paid=Number(it.unit_price);
+      if(p.anyPrice===true){
+        const min=Number(p.minPrice)>0?Number(p.minPrice):0;
+        if(!Number.isFinite(paid)||paid<=0)
+          bad.push(`${p.name}: buyer-chosen amount is missing or not positive`);
+        else if(paid<min)
+          bad.push(`${p.name}: paid ${paid}, below the ${min} minimum`);
+        else chosen++;
+      }else if(Number(p.price)!==paid){
         bad.push(`${p.name}: charged ${it.unit_price}, catalogue says ${p.price}`)}
+      if(p.noQuantity===true&&Number(it.quantity)!==1)
+        bad.push(`${p.name}: quantity ${it.quantity}, but this item is sold singly`)}
     checks.push(line(bad.length===0,
-      bad.length?"Item prices do NOT match the catalogue":"All item prices match the catalogue",
+      bad.length?"Item prices do NOT match the catalogue"
+        :chosen?`Item prices match the catalogue (${chosen} buyer-chosen)`
+        :"All item prices match the catalogue",
       bad.join("; ")));
 
     const failed=checks.some(c=>c.textContent.startsWith("✕"));
@@ -2237,11 +2466,16 @@ function adminProducts(d){
   const list=el("div",{class:"plist"});
   const redraw=()=>{
     list.replaceChildren(...d.products.map((p,i)=>el("div",{class:"pitem"},
-      p.image?el("img",{class:"thumb",src:p.image,alt:""}):el("div",{class:"thumb"}),
+      p.images?.[0]?el("img",{class:"thumb",src:p.images[0],alt:""}):el("div",{class:"thumb"}),
       el("div",{class:"info"},
         el("div",{class:"nm",text:p.name}),
         el("div",{style:"color:var(--muted);font-size:13px",
-          text:(isSats()?fmtSats(p.price):fmtFiat(p.price))+(p.available===false?" · unavailable":"")})),
+          text:(p.anyPrice
+              ?"any price"+(p.minPrice>0?` from ${isSats()?fmtSats(p.minPrice):fmtFiat(p.minPrice)}`:"")
+              :(isSats()?fmtSats(p.price):fmtFiat(p.price)))
+            +(p.images?.length>1?` · ${p.images.length} images`:"")
+            +(p.noQuantity?" · single":"")
+            +(p.available===false?" · unavailable":"")})),
       el("button",{class:"iconbtn",title:"Move up",disabled:i===0,
         onclick:()=>{[d.products[i-1],d.products[i]]=[d.products[i],d.products[i-1]];saveDraft(d);redraw()}},"↑"),
       el("button",{class:"iconbtn",title:"Move down",disabled:i===d.products.length-1,
@@ -2257,26 +2491,75 @@ function adminProducts(d){
 
 function editProduct(d,index,done){
   const p=index<0
-    ?{id:crypto.randomUUID().slice(0,8),name:"",desc:"",price:0,image:"",available:true,options:[]}
+    ?{id:crypto.randomUUID().slice(0,8),name:"",desc:"",price:0,images:[],available:true,
+      anyPrice:false,minPrice:0,noQuantity:false,options:[]}
     :structuredClone(d.products[index]);
 
   const name=el("input",{type:"text",required:true,value:p.name});
   const desc=el("textarea",null);desc.value=p.desc;
-  const price=el("input",{type:"number",step:isSats()?"1":"0.01",min:"0",required:true,value:String(p.price)});
+  const price=el("input",{type:"number",step:isSats()?"1":"0.01",min:"0",value:String(p.price)});
+  const minPrice=el("input",{type:"number",step:isSats()?"1":"0.01",min:"0",value:String(p.minPrice||0)});
   const avail=el("input",{type:"checkbox"});avail.checked=p.available!==false;
-  const imgUrl=el("input",{type:"text",value:p.image,placeholder:"https://… or upload below"});
-  const file=el("input",{type:"file",accept:"image/*"});
-  const preview=el("img",{class:"thumb",style:"width:72px;height:72px",src:p.image||"",alt:"",hidden:!p.image});
-  const sizeNote=el("div",{style:"color:var(--muted);font-size:12.5px;margin-top:6px"});
+  const anyPrice=el("input",{type:"checkbox"});anyPrice.checked=p.anyPrice===true;
+  const noQty=el("input",{type:"checkbox"});noQty.checked=p.noQuantity===true;
 
-  const setImg=v=>{imgUrl.value=v;preview.src=v;preview.hidden=!v;
-    sizeNote.textContent=v.startsWith("data:")?`Embedded image, ~${Math.round(v.length/1024)} KB of config.json`:""};
-  imgUrl.addEventListener("input",()=>setImg(imgUrl.value));
-  setImg(p.image);
+  /* images — up to MAX_IMAGES, reorderable, first one is the card thumbnail */
+  let images=(p.images||[]).slice(0,MAX_IMAGES);
+  const imgWrap=el("div");
+  const imgUrl=el("input",{type:"text",placeholder:"https://… then press Add"});
+  const file=el("input",{type:"file",accept:"image/*",multiple:true});
+  const imgNote=el("div",{style:"color:var(--muted);font-size:12.5px;margin-top:6px"});
 
+  const drawImgs=()=>{
+    const embedded=images.filter(s=>s.startsWith("data:"));
+    const kb=Math.round(embedded.reduce((n,s)=>n+s.length,0)/1024);
+    imgNote.textContent=`${images.length}/${MAX_IMAGES} images`+
+      (embedded.length?` · ${embedded.length} embedded, ~${kb} KB of config.json`:"");
+    imgWrap.replaceChildren(...images.map((src,i)=>el("div",{class:"imgrow"},
+      el("img",{src,alt:"",class:"thumb"}),
+      el("span",{style:"flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap",
+        text:src.startsWith("data:")?`embedded (${Math.round(src.length/1024)} KB)`:src}),
+      i===0?el("span",{class:"soldout",text:"cover"}):null,
+      el("button",{class:"iconbtn",type:"button",title:"Move left",disabled:i===0,
+        onclick:()=>{[images[i-1],images[i]]=[images[i],images[i-1]];drawImgs()}},"←"),
+      el("button",{class:"iconbtn",type:"button",title:"Move right",disabled:i===images.length-1,
+        onclick:()=>{[images[i+1],images[i]]=[images[i],images[i+1]];drawImgs()}},"→"),
+      el("button",{class:"iconbtn",type:"button",title:"Remove",
+        onclick:()=>{images.splice(i,1);drawImgs()}},"✕"))))};
+
+  const addImage=src=>{
+    if(!src)return;
+    if(images.length>=MAX_IMAGES){alert(`A product can have at most ${MAX_IMAGES} images.`);return}
+    images.push(src);drawImgs()};
   file.addEventListener("change",async()=>{
-    const f=file.files?.[0];if(!f)return;
-    try{setImg(await shrinkImage(f))}catch{alert("That image could not be read.")}});
+    for(const f of Array.from(file.files||[])){
+      if(images.length>=MAX_IMAGES)break;
+      try{addImage(await shrinkImage(f))}catch{alert("That image could not be read.")}}
+    file.value=""});
+  drawImgs();
+
+  /* pricing mode — fixed, or the buyer names the amount */
+  const priceFields=el("div");
+  const drawPrice=()=>{
+    const any=anyPrice.checked;
+    priceFields.replaceChildren(
+      any?null:el("label",{class:"f"},
+        el("span",{text:`Price (${isSats()?"sats":cfg.store.currency})`}),price),
+      el("label",{class:"chk"},anyPrice,
+        el("span",null,"Any price (buyer chooses)")),
+      el("div",{class:"hint",style:"margin:-6px 0 12px 25px"},
+        "For donations, tips, or pay-what-you-want. Order verification reads this flag from your ",
+        el("b",null,"published"),
+        " config, so a buyer cannot claim a fixed-price item was pay-what-you-want."),
+      any?el("label",{class:"f"},
+        el("span",{text:`Minimum ${isSats()?"(sats)":`(${cfg.store.currency})`} — 0 for none`}),
+        minPrice):null,
+      el("label",{class:"chk"},noQty,
+        el("span",null,"Don't require quantity")),
+      el("div",{class:"hint",style:"margin:-6px 0 6px 25px"},
+        "Sold one at a time. Hides the quantity picker and skips this item in the inventory list."))};
+  anyPrice.addEventListener("change",drawPrice);
+  drawPrice();
 
   /* options */
   let options=structuredClone(p.options||[]);
@@ -2298,7 +2581,11 @@ function editProduct(d,index,done){
     el("form",{method:"dialog",onsubmit:e=>{
       if(!name.value.trim()){e.preventDefault();return}
       const next={id:p.id,name:name.value.trim(),desc:desc.value.trim(),
-        price:Number(price.value)||0,image:imgUrl.value.trim(),available:avail.checked,
+        price:anyPrice.checked?0:(Number(price.value)||0),
+        images,available:avail.checked,
+        anyPrice:anyPrice.checked,
+        minPrice:anyPrice.checked?(Number(minPrice.value)||0):0,
+        noQuantity:noQty.checked,
         options:options.filter(o=>o.name.trim()&&o.choices.length)};
       if(index<0)d.products.push(next); else d.products[index]=next;
       saveDraft(d);done()}},
@@ -2306,13 +2593,17 @@ function editProduct(d,index,done){
       el("div",{class:"dlg-b"},
         el("label",{class:"f"},el("span",{text:"Name"}),name),
         el("label",{class:"f"},el("span",{text:"Description"}),desc),
-        el("label",{class:"f"},el("span",{text:`Price (${isSats()?"sats":cfg.store.currency})`}),price),
-        el("label",{class:"f"},el("span",{text:"Image URL"}),imgUrl),
-        el("label",{class:"f"},el("span",{text:"…or upload an image"}),
-          el("div",{class:"hint"},"Resized to 800px and embedded directly in config.json — keeps the site fully static, but adds to the file size."),
-          file),
-        el("div",{style:"display:flex;gap:12px;align-items:center;margin-bottom:14px"},preview,sizeNote),
-        el("label",{class:"chk"},avail,el("span",null,"Available to buy")),
+        priceFields,
+        el("h3",{text:"Images",style:"margin:18px 0 8px"}),
+        el("div",{class:"hint",style:"margin-bottom:8px"},
+          `Up to ${MAX_IMAGES}. The first is the one shown on the card; buyers page through the rest. `,
+          "Uploads are resized to 800px and embedded in config.json — fully static, but it adds to the file size."),
+        imgWrap,
+        el("div",{style:"display:flex;gap:8px;margin:8px 0"},imgUrl,
+          el("button",{class:"btn sec",type:"button",
+            onclick:()=>{addImage(imgUrl.value.trim());imgUrl.value=""}},"Add")),
+        file,imgNote,
+        el("label",{class:"chk",style:"margin-top:16px"},avail,el("span",null,"Available to buy")),
         el("h3",{text:"Options",style:"margin:18px 0 8px"}),
         optWrap),
       el("div",{class:"dlg-f"},
@@ -2597,18 +2888,79 @@ function adminPublish(d){
    shipping details, since the buyer is standing there.
    ══════════════════════════════════════════════════════════════════════════ */
 let till={};   // productId -> qty
+let manualAmount=null;             // ad-hoc charge, in the store's display units
+
+/**
+ * Keypad for charging an arbitrary amount — the first thing a cashier reaches
+ * for when something is not in the catalogue. Digits are entered lowest-unit
+ * first, the way a card terminal behaves.
+ */
+function viewKeypad(prefill=null){
+  chrome();
+  const sats=isSats();
+  let digits=prefill!=null?String(Math.round(prefill*(sats?1:100))):"";
+
+  const amtEl=el("div",{class:"pad-amt"});
+  const satsEl=el("div",{class:"pad-sats"});
+  const value=()=>{const n=Number(digits||"0");return sats?n:n/100};
+
+  const draw=()=>{
+    const v=value();
+    amtEl.textContent=sats?fmtSats(v):fmtFiat(v);
+    const s=sats?Math.round(v):unitSats({price:v});
+    satsEl.textContent=sats?"":(s===null?"rate unavailable":"⚡ "+new Intl.NumberFormat().format(s));
+    ok.disabled=!(v>0)||(!sats&&!rate)};
+
+  const key=t=>el("button",{type:"button",onclick:()=>{
+    if(t==="<")digits=digits.slice(0,-1);
+    else if(digits.length<10)digits=(digits+t).replace(/^0+(?=\d)/,"");
+    draw()}},t);
+
+  const ok=el("button",{class:"btn acc",style:"background:var(--accent);color:var(--accent-ink)",
+    onclick:()=>{
+      const v=value();
+      if(!(v>0))return;
+      manualAmount=v;
+      pendingCustomer={name:"In-person sale",email:"",phone:"",address:"",notes:""};
+      go("#/cashier-pay")}},"Ok");
+
+  draw();
+  show(el("div",{class:"pad"},
+    amtEl,satsEl,
+    el("div",{class:"pad-keys"},
+      ["1","2","3","4","5","6","7","8","9"].map(key),
+      sats?key("000"):key("00"),key("0"),key("<")),
+    el("div",{class:"pad-wide"},ok,
+      el("button",{class:"btn sec",type:"button",onclick:()=>{manualAmount=null;go("#/cashier")}},"Cancel"))))}
 
 function viewCashier(){
   chrome();
   const t=tillTotals();
+  // Manual payment sits on its own above a divider: it is the thing a cashier
+  // reaches for when nothing in the catalogue applies, not one of the items.
+  const manualSection=el("div",{class:"cashier-manual"},
+    el("div",{class:"grid"},
+      el("button",{class:"prod",
+        style:"cursor:pointer;text-align:left;border-width:2px;border-color:var(--accent)",
+        onclick:()=>go("#/keypad")},
+        el("div",{class:"body"},
+          el("h3",{text:"Manual payment"}),
+          el("div",{class:"price"},el("span",{text:"Any amount"})),
+          el("div",{style:"color:var(--muted);font-size:13px",
+            text:"Charge something not in the list"})))));
+
   const grid=el("div",{class:"grid"},cfg.products.map(p=>{
     const n=till[p.id]||0;
     return el("button",{class:"prod",style:"cursor:pointer;text-align:left;border-width:2px;"+
       (n?"border-color:var(--accent)":""),
-      onclick:()=>{till[p.id]=(till[p.id]||0)+1;viewCashier()}},
+      onclick:()=>{
+        // An any-price item has no list price to tally, so it goes to the keypad.
+        if(p.anyPrice)return viewKeypadFor(p);
+        till[p.id]=(till[p.id]||0)+1;viewCashier()}},
       el("div",{class:"body"},
         el("h3",{text:p.name}),
-        el("div",{class:"price"},el("span",{text:isSats()?fmtSats(p.price):fmtFiat(p.price)})),
+        el("div",{class:"price"},el("span",{
+          text:p.anyPrice?"Any amount":(isSats()?fmtSats(p.price):fmtFiat(p.price))})),
         n?el("div",{style:"font-weight:700;color:var(--accent)",text:`× ${n}`}):null))}));
 
   const lines=Object.entries(till).filter(([,n])=>n>0);
@@ -2634,6 +2986,8 @@ function viewCashier(){
       el("span",{class:"grow",style:"flex:1"}),
       el("button",{class:"ghost",onclick:()=>{till={};go("#/")}},"Exit")),
     el("p",{class:"sub",text:"Tap items to tally them, then take payment."}),
+    manualSection,
+    el("h2",{text:"Items"}),
     grid,
     el("h2",{text:"Tally"}),tally,
     el("div",{style:"display:flex;gap:10px;margin-top:18px"},
@@ -2642,14 +2996,26 @@ function viewCashier(){
         onclick:()=>{pendingCustomer={name:"In-person sale",email:"",phone:"",address:"",notes:""};
           go("#/cashier-pay")}},"Take payment")))}
 
+let keypadPrefill=null;
+const viewKeypadFor=p=>{keypadPrefill=p.anyPrice?null:p.price;go("#/keypad")};
+
 function tillTotals(){
+  // A manual charge is its own single line, so it flows through the ordinary
+  // order pipeline and lands in the order JSON like anything else.
+  if(manualAmount!=null)return{
+    lines:[{id:"manual",qty:1,opts:{},price:manualAmount,
+      product:{id:"manual",name:"Manual payment",price:manualAmount,anyPrice:false,options:[]}}],
+    fiat:manualAmount,
+    sats:unitSats({price:manualAmount})??0,
+    ship:0,
+    priceable:isSats()||Boolean(rate)};
   const lines=Object.entries(till).filter(([,n])=>n>0)
     .map(([id,qty])=>({id,qty,opts:{},product:findProduct(id)})).filter(l=>l.product);
   let fiat=0,sats=0,priceable=true;
   for(const l of lines){
     const u=unitSats(l.product);
     if(u===null)priceable=false; else sats+=u*l.qty;
-    fiat+=l.product.price*l.qty}
+    fiat+=linePrice(l)*l.qty}
   return{lines,fiat,sats,ship:0,priceable}}
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2657,7 +3023,8 @@ function tillTotals(){
    ══════════════════════════════════════════════════════════════════════════ */
 const ROUTES={"#/":viewStore,"#/cart":viewCart,"#/checkout":viewCheckout,
   "#/pay":viewPay,"#/done":viewDone,"#/admin":viewAdmin,
-  "#/cashier":viewCashier,"#/cashier-pay":viewPay};
+  "#/cashier":viewCashier,"#/cashier-pay":viewPay,
+  "#/keypad":()=>{const p=keypadPrefill;keypadPrefill=null;viewKeypad(p)}};
 const go=hash=>{if(location.hash===hash)route(); else location.hash=hash};
 function route(){
   stopTimers();
@@ -2665,6 +3032,11 @@ function route(){
 
 async function refreshRate(){
   rate=await fetchRate();chrome();
+  // Give the retries a moment before the storefront is allowed to complain.
+  setTimeout(()=>{
+    if(rateChecked)return;
+    rateChecked=true;
+    if(!rate&&["#/","#/cart"].includes(location.hash||"#/"))route()},2000);
   // A cold network or one rate-limited source shouldn't leave the store unbuyable
   // until the visitor reloads. Retry quietly, then re-render if it lands.
   for(let i=0;!rate&&!isSats()&&i<2;i++){
@@ -2672,7 +3044,8 @@ async function refreshRate(){
     rate=await fetchRate();chrome();
     // only re-render views with no form state to lose
     if(rate&&["#/","#/cart"].includes(location.hash||"#/"))route();
-  }}
+  }
+  rateChecked=true}
 
 document.addEventListener("click",e=>{
   const act=e.target.closest("[data-act]")?.dataset.act;
