@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "store": {
+    "name": "",
+    "tagline": "",
+    "orderEmail": "",
+    "lightningAddress": "",
+    "currency": "CAD",
+    "rateBasis": "index",
+    "accent": "#f7931a",
+    "background": "",
+    "icon": "",
+    "shippingSats": 0,
+    "shippingNote": "",
+    "askAddress": true,
+    "askPhone": false,
+    "askNotes": true,
+    "formEndpoint": "",
+    "formFields": {},
+    "signingAddress": "",
+    "canonicalUrl": "",
+    "trackInventory": false,
+    "encryptOrders": false,
+    "pgpPublicKey": ""
+  },
+  "products": []
+}
