@@ -1,1 +1,0 @@
-{"status":"OK","tag":"payRequest","commentAllowed":255,"callback":"https://rizful.com/lnurl_two/cjm/get_invoice","metadata":"[[\"text/identifier\",\"bitcoin@caelen.ca\"],[\"text/plain\",\"BTC for cjm\"]]","minSendable":1000,"maxSendable":25000000000,"payerData":{"name":{"mandatory":false},"email":{"mandatory":false},"pubkey":{"mandatory":false}},"allowsNostr":false}
